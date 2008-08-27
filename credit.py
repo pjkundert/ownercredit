@@ -45,19 +45,34 @@ class currency:
         self.symbol			= symbol
         self.commodities		= commodities	
         self.reference			= basket
-        self.K				= K
+
         self.window			= window
         self.epoch			= now
 
-        self.computed			= now        	# When was K last computed
-
-        # Compute the initial total value of the basket, and initialize current prices
-        self.initial			= value( self.reference )
-
-        self.average			= self.initial
+        # Compute the initial total value of the basket, and calculate
+        # the relative contribution of each commodity to the reference
+        # value of the currency
+        # and initialize current commodity prices and rolling average,
+        # remembering when K and rolling average was last computed.
         self.price			= self.reference.copy()
+        self.trend			= [ ( now, value( self.reference ), K ) ]
 
-            
+
+    # Returns the current (default) or a selected value of K,
+    # commodity basked price, and last computed time.
+
+    def K( self, which = -1 ):
+        return self.trend[which][2]
+
+    def value( self, which = -1 ):
+        return self.trend[which][1]
+
+    def computed( self, which = -1 ):
+        return self.trend[which][0]
+
+    def contribution( self, commodity, which = -1 ):
+        return self.price[commodity] / self.value( which )
+
     def update(
         self,
         basket				= { },
@@ -74,10 +89,16 @@ class currency:
         for k, v in basket.items():
             self.price[k]		= v
 
-        if now > self.computed:
-            elapsed			= now - self.computed
-            replaced			= elapsed / self.window
-            self.average	       *= max( 0.0, 1.0 - replaced )
-            self.average	       += min( 1.0, replaced ) * value( self.price )
+        if now > self.computed():
 
+            # Time has elapsed; updated the value/K trend
+            elapsed			= now - self.computed()
+            replaced			= 1.0 * elapsed / self.window
 
+            average			= max( 0.0, 1.0 - replaced ) * self.value()
+            average		       += min( 1.0, replaced ) * value( self.price )
+
+            K				= self.K()
+            K			       -= average / self.value( 0 )
+
+            self.trend.append( ( now, average, K ) )
