@@ -8,3 +8,31 @@ OVERVIEW
 
 
 
+
+ALGORITHM
+
+    The damping feedback control loop that generates K as money inflates and deflates over time is
+similar to the control circuit for a robot that balances a stick.  However, in this case, the mass
+of the stick and the force of gravity would be changing over time, too!
+
+    Therefore, the algorithm must respond only to the velocity and acceleration of the target -- not
+make assumptions about its mass and gravity.
+
+    Some examples I looked at were a home-made "Segway" balancing algorithm:
+
+        http://tlb.org/scooter.html
+
+An excellent balancing robot page, with dozens of references to other similar projects:
+
+        http://about.share4vn.com/2008/05/nbot-balancing-robot.html
+
+
+Source code in C obtained for one balancing robot:
+
+        http://www.bkinnovation.com/bkbot/
+
+Finally, I found a full-on Python implementation of a balancing simulation using Bang-bang,
+proportional and PID controllers:
+
+        http://www.edparadis.com/pyode/
+
