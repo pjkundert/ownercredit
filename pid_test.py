@@ -16,7 +16,7 @@ import pid
 from misc import *
 
 def test_controller():
-    control		= pid.controller( 1.0, ( 0.1, 0.1, 0.1 ), now = 0 )
+    control		= pid.controller( 1.0, 1,0, ( 0.1, 0.1, 0.1 ), now = 0 )
 
     assert near( control.loop( 1.0,  1 ),   0.0000 )
     assert near( control.loop( 1.0,  2 ),   0.0000 )
