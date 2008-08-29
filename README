@@ -36,3 +36,13 @@ proportional and PID controllers:
 
         http://www.edparadis.com/pyode/
 
+
+Another PID loop implementation was found in cgkit's pidcontroller.py file, which also illuminated
+some errors in the www.edparadis.com PID loop implementation (see pidcontroller.py:
+
+        http://gentoo.osuosl.org/distfiles/cgkit-2.0.0alpha7.tar.gz
+
+A more complex PID controller was found in:
+
+        http://matforge.org/fipy/browser/trunk/fipy/steppers/pidIterator.py?rev=1942&format=txt
+

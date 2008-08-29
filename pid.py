@@ -17,22 +17,30 @@ __license__			= "GNU General Public License V3 (or higher)"
 import time
 
 class controller:
-    def __init__( self, Pc, Ic, Imax, Imin, Dc, now = time.time() ):
-        self. last		= now
-        self.error_avg		= 0
+    def __init__( self, setpoint, Pc, Ic, Dc,
+    		   Imax = 0., Imin = 0., now = time.time() ):
+	self.setpoint		= setpoint
+
         self.Pconst		= Pc
         self.Iconst		= Ic
-        self.Imax		= Imax
-        self.Imin		= Imin
+        self.Imax		= Imax		# Integral wind-up avoidance (when output
+        self.Imin		= Imin		# doesn't reduce error term, eg. saturated motor drives, etc.)
         self.Dconst		= Dc
 
-        self.Dstate		= 0
-        self.Istate		= 0
-        
-    def loop( self, target, current, now = time.time() ):
-        error			= target - current
+        self.Dstate		= 0.
+        self.Istate		= 0.
 
-        P			= self.Pconst - error
+        self.last		= now
+	
+	        
+    def loop( self, in, now = time.time() ):
+
+        dt			= now - self.last
+	if not dt:
+	   return 
+        er			= self.setpoint - in
+
+        P			= self.Pconst - er
         D			= self.Dconst * ( error - self.Dstate )
         Dstate			= error
 
