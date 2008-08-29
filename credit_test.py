@@ -12,14 +12,7 @@ __license__				= "GNU General Public License, Version 3 (or later)"
 
 # local modules
 import credit
-
-
-def near( a, b, significance = 1.0e-4 ):
-
-    """ Returns True iff the difference between the values is within the factor 'significance' of
-    one of the original values.  Default is to within 4 decimal places. """
-
-    return abs( a - b ) <= significance * ( a and a or b )
+from misc import near
 
 def test_near():
     assert     near( 0.5, 0.500001 )

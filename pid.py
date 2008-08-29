@@ -15,42 +15,40 @@ __copyright__			= "Copyright (c) 2008 Perry Kundert"
 __license__			= "GNU General Public License V3 (or higher)"
 
 import time
+from misc import *
 
 class controller:
-    def __init__( self, setpoint, Pc, Ic, Dc,
-    		   Imax = 0., Imin = 0., now = time.time() ):
-	self.setpoint		= setpoint
+    def __init__( self,
+                  set		= 0,
+                  Kpid 		= ( 0., 0., 0. ),
+                  Li		= ( 0., 0. ),
+                  Lout		= ( 0., 0. ),
+                  now		= time.time() ):
 
-        self.Pconst		= Pc
-        self.Iconst		= Ic
-        self.Imax		= Imax		# Integral wind-up avoidance (when output
-        self.Imin		= Imin		# doesn't reduce error term, eg. saturated motor drives, etc.)
-        self.Dconst		= Dc
+	self.set		= set
 
-        self.Dstate		= 0.
-        self.Istate		= 0.
+        self.Kpid		= Kpid
+        self.Li			= Li		# Integral anti-wind-up (eg. output saturated, doesn't reduce error term)
+        self.Lout		= Lout		# Output limiting (eg. output saturated)
 
-        self.last		= now
-	
-	        
-    def loop( self, in, now = time.time() ):
+        self.last		= now		# Last time computed
+        self.err		= 0.		#   with this error term
+	self.I			= 0.		#   and integral of error over time
+        self.D			= 0.		# Remember for dt == 0. case...
 
+
+    def loop( self, inp, now = time.time() ):
         dt			= now - self.last
-	if not dt:
-	   return 
-        er			= self.setpoint - in
+        err			= self.set - inp
 
-        P			= self.Pconst - er
-        D			= self.Dconst * ( error - self.Dstate )
-        Dstate			= error
-
-        self.Istate	       += error
-        if self.Istate > self.Imax:
-            self.Istate		= self.Imax
-        elif self.Istate < self.Imin:
-            self.Istate		= self.Imin
-            
-        I			= self.Istate * self.Iconst
-
-        return P + I + D
-    
+        if dt:
+            # New error term only contributes to integral if time has elapsed!
+            # Avoid integral wind-up
+            self.I		= clamp( self.I + err * dt, self.Li )
+            self.D		= ( err - self.err ) / dt
+            self.err		= err
+            self.last		= now
+        
+        return clamp(      err * self.Kpid[0]
+                      + self.I * self.Kpid[1]
+                      + self.D * self.Kpid[2], self.Lout )
