@@ -14,6 +14,8 @@ __date__ 			= "$Date: 2006/05/10 16:51:11 $"
 __copyright__			= "Copyright (c) 2008 Perry Kundert"
 __license__			= "GNU General Public License V3 (or higher)"
 
+import time
+
 class controller:
     def __init__( self, Pc, Ic, Imax, Imin, Dc, now = time.time() ):
         self. last		= now
@@ -23,21 +25,24 @@ class controller:
         self.Imax		= Imax
         self.Imin		= Imin
         self.Dconst		= Dc
-    
+
+        self.Dstate		= 0
+        self.Istate		= 0
+        
     def loop( self, target, current, now = time.time() ):
         error			= target - current
 
         P			= self.Pconst - error
-        D			= self.Dconst * ( error - Dstate )
+        D			= self.Dconst * ( error - self.Dstate )
         Dstate			= error
 
-        Istate		       += error
-        if Istate > Imax:
-            Istate		= Imax
-        elif Istate < Imin:
-            Istate		= Imin
+        self.Istate	       += error
+        if self.Istate > self.Imax:
+            self.Istate		= self.Imax
+        elif self.Istate < self.Imin:
+            self.Istate		= self.Imin
             
-        I			= Istate * Iconst
+        I			= self.Istate * self.Iconst
 
         return P + I + D
     
