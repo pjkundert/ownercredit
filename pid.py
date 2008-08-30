@@ -19,28 +19,28 @@ from misc import *
 
 class controller:
     def __init__( self,
-                  set		= 0.0,		# Target setpoint
-                  inp		= 0.0,		# Estimated initial value (to avoid huge initial acceleration term!)
+                  setpoint	= 0.0,		# Target setpoint
                   Kpid 		= ( 0.1, 0.1, 0.1 ),
                   Li		= ( 0.0, 0.0 ),
                   Lout		= ( 0.0, 0.0 ),
                   now		= time.time() ):
 
-	self.set		= float( set )
+	self.setpoint		= setpoint
 
         self.Kpid		= Kpid
         self.Li			= Li		# Integral anti-wind-up (eg. output saturated, doesn't reduce error term)
         self.Lout		= Lout		# Output limiting (eg. output saturated)
 
-        self.last		= float( now )	# Last time computed
+        self.now		= now		# Last time computed
         self.err		= 0.		#   with this error term
 	self.I			= 0.		#   and integral of error over time
-        self.D			= set - inp	# Remember for dt == 0. case...
+        self.D			= 0.		# Remember for dt == 0. case...
 
+        self.err		= 0.		# Assume we are at setpoint
 
     def loop( self, inp, now = time.time() ):
-        dt			= float( now ) - self.last
-        err			= self.set - inp
+        dt			= now - self.now
+        err			= self.setpoint - inp
 
         if dt > 0:
             # New error term only contributes to integral if time has elapsed!
@@ -48,37 +48,43 @@ class controller:
             self.I		= clamp( self.I + err * dt, self.Li )
             self.D		= ( err - self.err ) / dt
             self.err		= err
-            self.last		= now
+            self.now		= now
         
         return clamp(      err * self.Kpid[0]
                       + self.I * self.Kpid[1]
                       + self.D * self.Kpid[2], self.Lout )
 
-
 if __name__ == "__main__":
-    # Run a little rocket up to 10m, and then station-keep
+    # Run a little rocket up to 100km, and then station-keep
 
-    g				= -9.8					# m/s^2
-    goal			= 10.					# m
+    g				= -9.81					# m/s^2
+    mass			= 1.					# kg
+    goal			= 25.					# m
+    countdown			= 1.					# s to launch
+    deadline			= 10.					# s to goal
+    platform			= 0.1					# m, height of launch pad
 
-    Kpid			= ( .1, .1, .1 )			# PID loop tuning
-    Lout			= ( 0.0, 3.0 )				# 3 kg m/s^2 of thrust available
+    Kpid			= ( 1.0, 0.5, 0.1 )			# PID loop tuning
+    Lout			= ( 0.0, 0.0 )				# 3 kg m/s^2 of thrust available
     Li				= ( 0.0, 0.0 )				# error integral limits
-    Ly				= ( 0.1, 0.0 )				# Lauch pad height
-    
+    Ly				= ( platform, 0.0 )			# Lauch pad height
 
-    m0				= 1.					# kg
+
+    m0				= mass
     a0				= 0.0
     v0				= 0.0
     y0				= Ly[0]
-    thrust			= 0.0
+    thrust			= 0.0					# N (kg.m/s^s)
 
-    autopilot			= controller( goal, y0, Kpid, Lout, Li )
-    start			= autopilot.last
+    target			= platform
+    autopilot			= controller( target, Kpid, Lout, Li )
+    start			= autopilot.now
 
+    liftoff			= start + countdown
     while 1:
+        time.sleep( 0.10 )
         now			= time.time()
-        dt			= now - autopilot.last			# last computed
+        dt			= now - autopilot.now			# last computed
 
         # Compute current altitude, based on elapsed time 'dt'
         # Compute acceleration f = ma, a=f/m
@@ -99,22 +105,29 @@ if __name__ == "__main__":
 
         # we have an average velocity over the time period; we can deduce ending velocity, and
         # from that, the actual net acceleration experienced over the period by a = ( v - v0 ) / t
-        v_act			= ( v_ave_act - v ) * 2.
+        v_act			= ( v_ave_act - v0 ) * 2.
         a_act			= ( v_act - v0 ) / dt
 
-        print( "T + %8.4f: (P: % 7.2f I: % 7.2f/% 7.2f D: %7.2f/% 7.2f) Thrust: % 7.2f: a: % 7.2f m/s^2 -> v: % 7.2f m/s -> Y: % 7.2fm |%sx%s\n"
+        print( "T + %5.2f: (P: % 7.2f I: % 7.2f/% 7.2f D: %7.2f/% 7.2f) Thrust: % 7.2fkg.m/s^s: a: % 7.2f (raw:% 7.2f)m/s^2 -> v: % 7.2f (raw:% 7.2f, ave:% 7.2f))m/s -> Y: % 7.2fm (err: % 7.2f, tar:% 7.2f) |%s\n"
                        % ( now - start,
                            autopilot.Kpid[0],
                            autopilot.Kpid[1],
                            autopilot.I,
                            autopilot.Kpid[2],
                            autopilot.D,
-                           thrust, a_act, v_act, y_act, '', '' ), )
+                           thrust,
+                           a_act, a,
+                           v_act, v, v_ave_act,
+                           y_act, autopilot.err, target,
+                           '.' * int( y_act * 10 / goal ) + '>' + '.' * max( 0, int( ( goal - y_act ) * 10 / goal ))), )
 
         a0			= a_act
         v0			= v_act
         y0			= y_act
 
-        # Compute new thrust based on current actual altitude
+        # Compute new thrust based on current actual altitude, and new target setpoint
+        if now > liftoff:
+            target		= updown( platform, goal, deadline, now - liftoff )
+
+        autopilot.setpoint	= target
         thrust			= autopilot.loop( y0, now )
-        time.sleep( 0.10 )

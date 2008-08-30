@@ -10,6 +10,7 @@ __date__ 				= "$Date$"
 __copyright__				= "Copyright (c) 2006 Perry Kundert"
 __license__				= "GNU General Public License, Version 3 (or later)"
 
+from math import *
 
 def near( a, b, significance = 1.0e-4 ):
 
@@ -25,3 +26,14 @@ def clamp( val, lim ):
     if ( lim[1] and val > lim[1] ):
         val		= lim[1]
     return val
+
+def updown( start, end, deadline, elapsed ):
+    len				= end - start
+    mid				= len / 2
+    halftime			= deadline / 2
+    if elapsed < halftime:
+        return start + mid - sqrt( ( mid * mid ) * ( halftime - elapsed ) / halftime )
+    if elapsed < deadline:
+        return start + mid + sqrt( ( mid * mid ) * ( elapsed - halftime ) / halftime )
+    return start + len
+    
