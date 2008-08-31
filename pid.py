@@ -54,8 +54,14 @@ class controller:
                       + self.I * self.Kpid[1]
                       + self.D * self.Kpid[2], self.Lout )
 
-if __name__ == "__main__":
-    # Run a little rocket up to 100km, and then station-keep
+def message( window, text, row = 23 ):
+    window.move( row, 0 )
+    window.clrtoeol()
+    window.addstr( row, 5, text )
+    window.refresh()
+
+def ui( win, title = "Test" ):
+    # Run a little rocket up to 25m, and then station-keep
 
     g				= -9.81					# m/s^2
     mass			= 1.					# kg
@@ -64,7 +70,7 @@ if __name__ == "__main__":
     deadline			= 10.					# s to goal
     platform			= 0.1					# m, height of launch pad
 
-    Kpid			= ( 1.0, 0.5, 0.1 )			# PID loop tuning
+    Kpid			= ( 3.0, 0.5, 0.1 )			# PID loop tuning
     Lout			= ( 0.0, 0.0 )				# 3 kg m/s^2 of thrust available
     Li				= ( 0.0, 0.0 )				# error integral limits
     Ly				= ( platform, 0.0 )			# Lauch pad height
@@ -82,7 +88,11 @@ if __name__ == "__main__":
 
     liftoff			= start + countdown
     while 1:
-        time.sleep( 0.10 )
+        message( win, "Quit (y/n)?", row = 0 )
+        input			= win.getch()
+        if input > 0 and chr( input ) == 'y':
+            break
+
         now			= time.time()
         dt			= now - autopilot.now			# last computed
 
@@ -108,18 +118,22 @@ if __name__ == "__main__":
         v_act			= ( v_ave_act - v0 ) * 2.
         a_act			= ( v_act - v0 ) / dt
 
-        print( "T + %5.2f: (P: % 7.2f I: % 7.2f/% 7.2f D: %7.2f/% 7.2f) Thrust: % 7.2fkg.m/s^s: a: % 7.2f (raw:% 7.2f)m/s^2 -> v: % 7.2f (raw:% 7.2f, ave:% 7.2f))m/s -> Y: % 7.2fm (err: % 7.2f, tar:% 7.2f) |%s\n"
-                       % ( now - start,
-                           autopilot.Kpid[0],
-                           autopilot.Kpid[1],
-                           autopilot.I,
-                           autopilot.Kpid[2],
-                           autopilot.D,
-                           thrust,
-                           a_act, a,
-                           v_act, v, v_ave_act,
-                           y_act, autopilot.err, target,
-                           '.' * int( y_act * 10 / goal ) + '>' + '.' * max( 0, int( ( goal - y_act ) * 10 / goal ))), )
+        # Frame of animation
+        win.clear()
+        rows, cols		= win.getmaxyx()
+        message( win,
+                 "T + %5.2f: (P: % 7.2f I: % 7.2f/% 7.2f D: %7.2f/% 7.2f) Thrust: % 7.2fkg.m/s^s: a: % 7.2f (raw:% 7.2f)m/s^2 -> v: % 7.2f (raw:% 7.2f, ave:% 7.2f))m/s -> Y: % 7.2fm (err: % 7.2f, tar:% 7.2f)"
+                   % ( now - start,
+                       autopilot.Kpid[0],
+                       autopilot.Kpid[1],
+                       autopilot.I,
+                       autopilot.Kpid[2],
+                       autopilot.D,
+                       thrust,
+                       a_act, a,
+                       v_act, v, v_ave_act,
+                       y_act, autopilot.err, target ),
+                 row = 1 )
 
         a0			= a_act
         v0			= v_act
@@ -129,5 +143,40 @@ if __name__ == "__main__":
         if now > liftoff:
             target		= updown( platform, goal, deadline, now - liftoff )
 
+        r			= rows - rows * y0     / ( goal * 4 / 3 )
+        x			= rows - rows * goal   / ( goal * 4 / 3 )
+        c			= rows - rows * target / ( goal * 4 / 3 )
+
+        message( win, str( r ), row = 2 )
+
+        win.addstr( int( c )     , cols / 2, '.' ) # carrot
+        win.addstr( int( x )     , cols / 2, 'x' ) # goal
+
+        win.addstr( int( r ) - 2 , cols / 2, '^' ) # rocket
+        win.addstr( int( r ) - 1 , cols / 2, '|' )
+        win.addstr( int( r )     , cols / 2, "';'`!"[ int( time.time() * 100 ) % 4] )
+        # win.addstr( rows - rows * y0 / ( goal * 2 ) + 1, cols / 2, '.' )
+        
+
+
+
         autopilot.setpoint	= target
         thrust			= autopilot.loop( y0, now )
+
+
+if __name__=='__main__':
+    import curses, traceback
+    try:        # Initialize curses
+        stdscr=curses.initscr()
+        curses.noecho() ; curses.cbreak(); curses.halfdelay( 1 )
+        stdscr.keypad(1)
+        ui( stdscr, title="Rocket" )        # Enter the mainloop
+        stdscr.keypad(0)
+        curses.echo() ; curses.nocbreak()
+        curses.endwin()                 # Terminate curses
+    except:
+        stdscr.keypad(0)
+        curses.echo() ; curses.nocbreak()
+        curses.endwin()
+        traceback.print_exc()           # Print the exception
+
