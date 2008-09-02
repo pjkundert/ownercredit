@@ -21,19 +21,24 @@ def near( a, b, significance = 1.0e-4 ):
 
 def clamp( val, lim ):
     """ Limit val to between 2 (optional) limits """
-    if ( lim[0] and val < lim[0] ):
+    if (( lim[0] or type( lim[0] ) != bool ) and val < lim[0] ):
         val		= lim[0]
-    if ( lim[1] and val > lim[1] ):
+    if (( lim[1] or type( lim[1] ) != bool ) and val > lim[1] ):
         val		= lim[1]
     return val
 
-def updown( start, end, deadline, elapsed ):
+def updown( start, end, begin, finish, now ):
+
+    duration			= finish - begin
+    elapsed			= now - begin
     len				= end - start
     mid				= len / 2
-    halftime			= deadline / 2
+    halftime			= duration / 2
+    if elapsed < 0:
+        return start
     if elapsed < halftime:
-        return start + mid - sqrt( ( mid * mid ) * ( halftime - elapsed ) / halftime )
-    if elapsed < deadline:
-        return start + mid + sqrt( ( mid * mid ) * ( elapsed - halftime ) / halftime )
-    return start + len
+        return start + mid - sqrt( ( mid * mid ) * ( halftime - elapsed ) / duration )
+    if elapsed < duration:
+        return start + mid + sqrt( ( mid * mid ) * ( elapsed - halftime ) / duration )
+    return end
     
