@@ -27,16 +27,20 @@ def clamp( val, lim ):
         val		= lim[1]
     return val
 
+# Compute a smoothly accelerating then decelerating path between 2 values.
+# Just fake it by computing the proportion of the square of the distance from each end, taking
+# the minimum and then the root.
+
 def updown( start, end, begin, finish, now ):
+    distance			= end - start
     duration			= finish - begin
     elapsed			= now - begin
-    mid				= ( end - start ) / 2
+
     halftime			= duration / 2
     if elapsed < 0:
         return start
-    if elapsed < halftime:
-        return start + mid * ( 1. - sqrt( ( mid * mid ) * ( halftime - elapsed ) / duration ) / abs( mid ))
     if elapsed < duration:
-        return start + mid * ( 0. + sqrt( ( mid * mid ) * ( elapsed - halftime ) / duration ) / abs( mid ))
+        fraction		= float( elapsed ) / duration
+        return start + distance * ((( fraction * fraction ) - (( 1. - fraction ) * ( 1. - fraction ))) + 1. ) / 2
     return end
     

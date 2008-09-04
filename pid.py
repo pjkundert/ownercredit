@@ -17,6 +17,14 @@ __license__			= "GNU General Public License V3 (or higher)"
 import time
 from misc import *
 
+
+
+# 
+# pid.controller	-- Collect error and adjust output to compensate
+#
+#     
+# 
+# 
 class controller:
     def __init__( self,
                   setpoint	= 0.0,		# Target setpoint
@@ -71,12 +79,11 @@ def ui( win, title = "Test" ):
     platform			= 0.1					# m, height of launch pad
 
     Kpid			= ( 3.0, 1.0, 0.5 )			# PID loop tuning
-    Lout			= ( 0.0, False )			# No negative thrust available
+    Lout			= ( False, False )			# No negative thrust available
     Li				= ( False, False ) 			# error integral limits; avoiding integral loading causes uncorrected error?
     Ly				= ( platform, False )			# Lauch pad height
 
 
-    m0				= mass
     a0				= 0.0
     v0				= 0.0
     y0				= Ly[0]
@@ -110,6 +117,30 @@ def ui( win, title = "Test" ):
                     begin	= now
                     finish	= now + 2
 
+            # Adjust Kp
+            if chr( input) == 'P':
+                autopilot.Kpid	= ( autopilot.Kpid[0] + .1, autopilot.Kpid[1], autopilot.Kpid[2] )
+            if chr( input) == 'p':
+                autopilot.Kpid	= ( autopilot.Kpid[0] - .1, autopilot.Kpid[1], autopilot.Kpid[2] )
+
+            # Adjust Ki
+            if chr( input) == 'I':
+                autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1] + .1, autopilot.Kpid[2] )
+            if chr( input) == 'i':
+                autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1] - .1, autopilot.Kpid[2] )
+
+            # Adjust Kd
+            if chr( input) == 'D':
+                autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1], autopilot.Kpid[2] + .1 )
+            if chr( input) == 'd':
+                autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1], autopilot.Kpid[2] - .1 )
+
+            # Adjust Mass
+            if chr( input) == 'M':
+                mass	       += .1
+            if chr( input) == 'm':
+                mass	       -= .1
+            
         elapsed			= now - liftoff
 
         now			= time.time()
@@ -117,7 +148,7 @@ def ui( win, title = "Test" ):
 
         # Compute current altitude, based on elapsed time 'dt'
         # Compute acceleration f = ma, a=f/m
-        a			= g + thrust / m0
+        a			= g + thrust / mass
 
         # Compute ending velocity v = v0 + at
         v			= v0 + a * dt
@@ -141,7 +172,7 @@ def ui( win, title = "Test" ):
         win.clear()
         rows, cols		= win.getmaxyx()
         message( win,
-                 "T%+7.2f: (P: % 8.4f I: % 8.4f/% 8.4f D: %8.4f/% 8.4f)"
+                 "T%+7.2f: ([P/p]: % 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: %8.4f/% 8.4f)"
                    % ( now - start,
                        autopilot.Kpid[0],
                        autopilot.Kpid[1],
@@ -150,19 +181,19 @@ def ui( win, title = "Test" ):
                        autopilot.D ),
                  row = 1 )
         message( win,
-                 "  f: % 7.2fkg.m/s^s"
-                 % ( thrust ),
+                 "  f: % 7.2fkg.m/s^s (mass % 7.2fkg [M/m])"
+                 % ( thrust, mass ),
                  row = 2 )
         message( win,
-                 "  a: % 7.2fm/s^2 (raw:% 7.2f)"
+                 "  a: % 7.2fm/s^2    (raw:% 7.2f)"
                  % ( a_act, a ), 
                  row = 3 )
         message( win,
-                 "  v: % 7.2fm/s   (raw:% 7.2f, ave:% 7.2f))"
+                 "  v: % 7.2fm/s      (raw:% 7.2f, ave:% 7.2f))"
                  % ( v_act, v, v_ave_act ),
                  row = 4 )
         message( win,
-                 "  Y: % 7.2fm     (err: % 7.2f, tar:% 7.2f, goal:% 7.2f)"
+                 "  Y: % 7.2fm        (err:% 7.2f, tar:% 7.2f, goal:% 7.2f [k/j])"
                  % ( y_act, autopilot.err, target, goal ),
                  row = 5 )
 
