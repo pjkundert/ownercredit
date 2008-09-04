@@ -67,12 +67,12 @@ def ui( win, title = "Test" ):
     goal			= 25.					# m
     ceiling			= 35.
     countdown			= 1.					# s to launch
-    duration			= 10.					# s to goal
+    duration			= 5.					# s to goal
     platform			= 0.1					# m, height of launch pad
 
-    Kpid			= ( 3.0, 0.5, 0.1 )			# PID loop tuning
-    Lout			= ( 0.0, 20.0 )				# 20 kg m/s^2 of thrust available
-    Li				= ( False, False ) # ( -5., 5. )				# error integral limits
+    Kpid			= ( 3.0, 1.0, 0.5 )			# PID loop tuning
+    Lout			= ( 0.0, False )			# No negative thrust available
+    Li				= ( False, False ) 			# error integral limits; avoiding integral loading causes uncorrected error?
     Ly				= ( platform, False )			# Lauch pad height
 
 
@@ -141,7 +141,7 @@ def ui( win, title = "Test" ):
         win.clear()
         rows, cols		= win.getmaxyx()
         message( win,
-                 "T + %5.2f: (P: % 7.2f I: % 7.2f/% 7.2f D: %7.2f/% 7.2f)"
+                 "T%+7.2f: (P: % 8.4f I: % 8.4f/% 8.4f D: %8.4f/% 8.4f)"
                    % ( now - start,
                        autopilot.Kpid[0],
                        autopilot.Kpid[1],
@@ -185,12 +185,14 @@ def ui( win, title = "Test" ):
         message( win, "  goal:% 7.2f, target:% 7.2f, row:% 7.2f" % ( goal, target, r ),
                  row = 6 )
 
-        win.addstr( int( x )     , cols / 2, 'x' ) # goal
-        win.addstr( int( c )     , cols / 2, '.' ) # carrot
-
-        win.addstr( int( r ) - 2 , cols / 2, '^' ) # rocket
-        win.addstr( int( r ) - 1 , cols / 2, '|' )
-        win.addstr( int( r )     , cols / 2, ";'`^!.()"[ int( time.time() * 100 ) % 8 ] )
+        if x >= 0:
+            win.addstr( int( x )     , cols / 2, 'x' ) # goal
+	if c >= 0:
+            win.addstr( int( c )     , cols / 2, '.' ) # carrot
+	if r >= 2:
+	    win.addstr( int( r ) - 2 , cols / 2, '^' ) # rocket
+	    win.addstr( int( r ) - 1 , cols / 2, '|' )
+	    win.addstr( int( r )     , cols / 2, ";'`^!.()"[ int( time.time() * 100 ) % 8 ] )
 
         autopilot.setpoint	= target
         thrust			= autopilot.loop( y0, now )

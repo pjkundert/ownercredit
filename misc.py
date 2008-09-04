@@ -28,17 +28,15 @@ def clamp( val, lim ):
     return val
 
 def updown( start, end, begin, finish, now ):
-
     duration			= finish - begin
     elapsed			= now - begin
-    len				= end - start
-    mid				= len / 2
+    mid				= ( end - start ) / 2
     halftime			= duration / 2
     if elapsed < 0:
         return start
     if elapsed < halftime:
-        return start + mid - sqrt( ( mid * mid ) * ( halftime - elapsed ) / duration )
+        return start + mid * ( 1. - sqrt( ( mid * mid ) * ( halftime - elapsed ) / duration ) / abs( mid ))
     if elapsed < duration:
-        return start + mid + sqrt( ( mid * mid ) * ( elapsed - halftime ) / duration )
+        return start + mid * ( 0. + sqrt( ( mid * mid ) * ( elapsed - halftime ) / duration ) / abs( mid ))
     return end
     
