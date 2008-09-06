@@ -16,22 +16,22 @@ import pid
 from misc import *
 
 def test_controller():
-    control		= pid.controller( 1.0, 1,0, ( 0.1, 0.1, 0.1 ), now = 0 )
+    control		= pid.pid( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
 
-    assert near( control.loop( 1.0,  1 ),   0.0000 )
-    assert near( control.loop( 1.0,  2 ),   0.0000 )
-    assert near( control.loop( 1.1,  3 ),  -0.0300 )
-    assert near( control.loop( 1.1,  4 ),  -0.0300 )
-    assert near( control.loop( 1.1,  5 ),  -0.0400 )
-    assert near( control.loop( 1.05, 6 ),  -0.0350 )
-    assert near( control.loop( 1.05, 7 ),  -0.0450 )
-    assert near( control.loop( 1.01, 8 ),  -0.0380 )
-    assert near( control.loop( 1.0,  9 ),  -0.0400 )
-    assert near( control.loop( 1.0, 10 ),  -0.0410 )
-    assert near( control.loop( 1.0, 11 ),  -0.0410 )
-    assert near( control.loop( 1.0, 12 ),  -0.0410 )
-    assert near( control.loop( 1.0, 13 ),  -0.0410 )
-    assert near( control.loop( 1.0, 14 ),  -0.0410 )
+    assert near( control.loop( 1.0, 1.0, now = 1. ),   0.0000 )
+    assert near( control.loop( 1.0, 1.0, now = 2. ),   0.0000 )
+    assert near( control.loop( 1.0, 1.1, now = 3. ),  -0.5000 )
+    assert near( control.loop( 1.0, 1.1, now = 4. ),  -0.4000 )
+    assert near( control.loop( 1.0, 1.1, now = 5. ),  -0.5000 )
+    assert near( control.loop( 1.0, 1.05,now = 6. ),  -0.3500 )
+    assert near( control.loop( 1.0, 1.05,now = 7. ),  -0.5000 )
+    assert near( control.loop( 1.0, 1.01,now = 8. ),  -0.3500 )
+    assert near( control.loop( 1.0, 1.0, now = 9. ),  -0.3900 )
+    assert near( control.loop( 1.0, 1.0, now =10. ),  -0.4100 )
+    assert near( control.loop( 1.0, 1.0, now =11. ),  -0.4100 )
+    assert near( control.loop( 1.0, 1.0, now =12. ),  -0.4100 )
+    assert near( control.loop( 1.0, 1.0, now =13. ),  -0.4100 )
+    assert near( control.loop( 1.0, 1.0, now =14. ),  -0.4100 )
 
 
     

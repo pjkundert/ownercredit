@@ -10,7 +10,11 @@ __date__ 				= "$Date$"
 __copyright__				= "Copyright (c) 2006 Perry Kundert"
 __license__				= "GNU General Public License, Version 3 (or later)"
 
-from math import *
+import math
+import time
+
+# Augment math with some useful constants
+math.nan			= float( 'nan' )
 
 def near( a, b, significance = 1.0e-4 ):
 
@@ -19,28 +23,75 @@ def near( a, b, significance = 1.0e-4 ):
 
     return abs( a - b ) <= significance * abs( a and a or b )
 
+# clamp a value to a tuple of limits.
+# 
+#     Limits that are math.nan are automatically ignored, with no special code.
+# 
 def clamp( val, lim ):
-    """ Limit val to between 2 (optional) limits """
-    if (( lim[0] or type( lim[0] ) != bool ) and val < lim[0] ):
-        val		= lim[0]
-    if (( lim[1] or type( lim[1] ) != bool ) and val > lim[1] ):
-        val		= lim[1]
+    """ Limit val to between 2 (optional, if nan) limits """
+    if ( val < lim[0] ):
+        return lim[0]
+    if ( val > lim[1] ):
+        return lim[1]
     return val
 
-# Compute a smoothly accelerating then decelerating path between 2 values.
-# Just fake it by computing the proportion of the square of the distance from each end, taking
-# the minimum and then the root.
+# filter
+# 
+#     Takes the current value and last average, and returns the new
+# average, weighted by the current value and the elapsed time.
+# 
+def weighted( val, dt, avg, period ):
+    """ Returns the average with the delta-time weighted new value """
+    if dt >= period:
+        return val
+    fraction			= dt / period
+    return (   val *        fraction
+             + avg * ( 1. - fraction ))
 
-def updown( start, end, begin, finish, now ):
+class filter:
+    def __init__( self,
+                  interval,
+                  now		= time.time() ):
+        self.interval		= interval		# Changing will take effect after next 'add'
+        self.now		= now
+        self.history		= [  ]
+        self.sum		= 0.
+        
+    def get( self ):
+        return self.sum / len( self.history )
+
+    def add( self,
+             value,
+             now		= time.time() ):
+        # Purge dead values
+        dead			= now - self.interval
+        while len( self.history ) and self.history[-1][1] < dead:
+            self.history.pop()
+
+        # Save new value
+        self.history.insert( 0, ( value, now ) )
+
+        # Return average of remaining values
+        self.sum		= 0.
+        for v,t in self.history:
+            self.sum	       += v
+        return self.sum / len( self.history )
+            
+        
+
+# 
+# linear	-- linear motion
+# 
+#     Compute linear motion between 2 values.
+# 
+def linear( start, end, begin, finish, now ):
     distance			= end - start
     duration			= finish - begin
     elapsed			= now - begin
 
-    halftime			= duration / 2
     if elapsed < 0:
         return start
     if elapsed < duration:
         fraction		= float( elapsed ) / duration
-        return start + distance * ((( fraction * fraction ) - (( 1. - fraction ) * ( 1. - fraction ))) + 1. ) / 2
+        return start + distance * fraction
     return end
-    
