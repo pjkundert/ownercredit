@@ -26,9 +26,9 @@ def test_near():
 
 def test_money_create_1():
     
-    # What commodities back the currency, and how are they measured
-    # and priced?  These commodities are priced in standard Units of a
-    # specific quality, delivered at a certain market.
+    # What commodities back the currency, and how are they measured and priced?  These commodities
+    # are priced in standard Units of a specific quality, delivered at a certain market.  (These are
+    # not used right now, so the values you provide are not checked).
     
     commodities			= {
         # Commodity	 Units	 -of-	Quality	  -at-	Market
@@ -38,9 +38,10 @@ def test_money_create_1():
         }
 
     # What wealth backs each unit of currency, and in what (constant) proportion?  As the prices of
-    # these commodities change, the value of the unit of currency fluctuates.
+    # these commodities change, the value of the unit of currency fluctuates.  How many units of
+    # your currency does this basket of wealth represent?
 
-    multiplier			= 100
+    multiplier			= 100		# 100 BUX is:
     basket			= {
         # Commodity	Amount	Proportion
         'beer':	       25,		# One for the road, eh!
@@ -49,9 +50,10 @@ def test_money_create_1():
         }
 
     # What are the current commodity prices (per unit, specified above)?  These don't really matter
-    # individually or proportionally, but the value of &100.00 is always able to purchase the entire
-    # basket.  We don't need them, in order to establish the currency, but we'll see later that they are
-    # 
+    # individually or proportionally, but the value of 100.00 BUX is always able to purchase the
+    # entire basket.  We don't need them, in order to establish the currency, but we'll see later
+    # what they are used for.  We'll define them here, so you can see how the basket of commodities
+    # corresponds to 100.00 BUX:
 
     prices			= {
         # Commodity	Price	
@@ -60,8 +62,9 @@ def test_money_create_1():
         "bullets":	 25.00 / 100,	# BUX0.25/ea
         }
 
-    # BUX, or &, are computed based on a the given commodities back,
-    # over a rolling average over 3 units of time, beginning at 0.
+    # BUX, or & (the "antlers" symbol, of course!), are computed based on a the given commodities
+    # back, over a rolling average over 3 units of time, beginning at 0.  We'll start with a K of
+    # 0.5, and a damping feedback based on 3.0 x any inflation/deflationary error term:
     
     buck			= credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
@@ -69,7 +72,7 @@ def test_money_create_1():
                                                    window = 3.,  now = 0 )
 
     assert buck.window == 3.
-    assert near( buck.basket['beer'],   25 ) # a suitcase plus one of beer is included in the BUX commodity basket; Booya!
+    assert near( buck.basket['beer'],   25 ) # a "suitcase" plus one can of beer is included in the BUX commodity basket; Booya!
     assert buck.now()		== 0
     assert near( buck.inflation(),	1.00 )
     assert near( buck.K(), 		0.5 )
