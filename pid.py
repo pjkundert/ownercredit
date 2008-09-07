@@ -112,7 +112,7 @@ def ui( win, title = "Test" ):
     Finp			= 0.					# Filter input?
     Fset			= 1.0					#   or setpoint?
 
-    Kpid			= (    2.0,      1.0,      2.0   )	# PID loop tuning
+    Kpid			= (    2.0,      0.1,      1.0   )	# PID loop tuning
     Lout			= ( math.nan, math.nan )		# No -'vethrust available, limit +'ve? Causes integral wind-up and overshoot
     #Lout			= (    0.0,     50.0   )
     #Lout			= (    0.0,   math.nan )
@@ -279,7 +279,7 @@ def ui( win, title = "Test" ):
 	if int(  r)  >= 1 and int(  r ) < rows + 1:
 	    win.addstr( int( r ) - 1 , cols / 2,   '|' )
 	if int(  r)  >= 0 and int(  r ) < rows:
-	    win.addstr( int( r )     , cols / 2,   ";'`^!."[ int( now * 1000 ) % 6 ] )
+	    win.addstr( int( r )     , cols / 2,   ";'`^!."[ int( now * 100 ) % 6 ] )
 
 
 

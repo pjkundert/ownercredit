@@ -21,7 +21,7 @@ def near( a, b, significance = 1.0e-4 ):
     """ Returns True iff the difference between the values is within the factor 'significance' of
     one of the original values.  Default is to within 4 decimal places. """
 
-    return abs( a - b ) <= significance * abs( a and a or b )
+    return abs( a - b ) <= significance * max( abs( a ), abs( b ))
 
 # clamp a value to a tuple of limits.
 # 

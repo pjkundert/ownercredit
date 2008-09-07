@@ -8,21 +8,112 @@ OVERVIEW
 
 
 
+USAGE
+
+    The implementation requires 3 files:
+
+	credit.py	-- implements a generic currency system
+	pid.py		-- implements a PID feedback controller
+	misc.py		-- other non-specific methods and data
+
+    Simply import the credit module, and create a currency based on a
+set of commodities of your choice.  First, describe them in a
+dictionary 'commodities' (this is not presently used, so its content
+isn't checked):
+
+    import credit
+
+    commodities			= {
+        # Commodity	 Units	 -of-	Quality	  -at-	Market
+        "gas":		( "l",		"Unleaded"	"Exxon"	    ),
+        "beer":		( "355ml",	"Pilsener",	"7-11"	    ),
+        "bullets":	( "9mm",	"Springfield",	"Walmart"   ),
+        }
+
+    Next, specify the basket of these commodities that back a certain
+number of units of your currency:
+    
+    multiplier			= 100
+
+    basket			= {
+        # Commodity	Amount	Proportion
+        'beer':	       25,		# One for the road, eh!
+        'gas':	       50,		# Out to the hunt, and back...
+        'bullets':    100,		# Should be enough to bag that Elk!
+        }
+
+    Establish your currency.  We'll say that 100 BUX (represented, or
+course, by the "antler" symbol '&'), always buys 25 beer, 50l of gas,
+and 100 rounds of ammunition for the 30.06.  Furthermore, we'll start
+off with a K (credit factor) of 0.5, we'll feed a factor of 3x the
+inflation error back into the K computation, we'll use a running
+average of commodity prices over a window of 3 time periods in
+computing inflation, and we'll start with time stamp 0:
+
+    buck			= credit.currency( '&', 'BUX',
+                                                   commodities, basket, multiplier,
+                                                   K = 0.5, damping = 3.0,
+                                                   window = 3.,  now = 0. )
+
+
+	
+    Now, in the main loop of your program, you'll need to update the
+commodity prices from time to time, in order to allow BUX to compute a
+new credit factor.  Get a basket of commodity prices.  It must be
+complete (have all commodities), the first time you call update().
+We'll use a time unit of 1, instead of the (default) current real
+time:
+
+    prices			= {
+        # Commodity	Price	
+        "gas":		  1.00 /   1,	# BUX1.00/ea
+        "beer":		  6.00 /   6,	# BUX1.00/ea
+        "bullets":	 25.00 / 100,	# BUX0.25/ea
+        }
+    buck.update( prices, now = 1 )
+
+
+    Since we presented a set of commodity prices that worked out to a
+price of &100.00 for the full basket of BUX commodities, we have an
+inflation of 0 (buck.inflation() == 0), and hence buck.K() will be 0.5
+(the initial value).  So, how do we get credit out of this system?  We
+pledge a basket of commodities, composed of 1 or more of the
+currencies commodities.  We could pledge the initial basket we used to
+create the currency.  It should be worth &100.00 (no inflation or
+deflation!), so we'll a result of &50.00 from buck:
+
+    buck.credit( basket )
+
+
+    That's it!  
+
+
+SIMULATION
+
+   Run credit.py to see a simulation of a currency.  Adjust the
+commodity prices to see Inflation go up/down, and observe the K will
+decrease/increase 'til Inflation is restored to 0.
+
+   Run pid.py to see a PID controlled rocket.
+
 
 ALGORITHM
 
-    The damping feedback control loop that generates K as money inflates and deflates over time is
-similar to the control circuit for a robot that balances a stick.  However, in this case, the mass
-of the stick and the force of gravity would be changing over time, too!
+    The damping feedback control loop that generates K as money
+inflates and deflates over time is similar to the control circuit for
+a robot that balances a stick.  However, in this case, the mass of the
+stick and the force of gravity would be changing over time, too!
 
-    Therefore, the algorithm must respond only to the velocity and acceleration of the target -- not
-make assumptions about its mass and gravity.
+    Therefore, the algorithm must respond only to the velocity and
+acceleration of the target -- not make assumptions about its mass and
+gravity.
 
     Some examples I looked at were a home-made "Segway" balancing algorithm:
 
         http://tlb.org/scooter.html
 
-An excellent balancing robot page, with dozens of references to other similar projects:
+An excellent balancing robot page, with dozens of references to other
+similar projects:
 
         http://about.share4vn.com/2008/05/nbot-balancing-robot.html
 
@@ -31,14 +122,15 @@ Source code in C obtained for one balancing robot:
 
         http://www.bkinnovation.com/bkbot/
 
-Finally, I found a full-on Python implementation of a balancing simulation using Bang-bang,
-proportional and PID controllers:
+Finally, I found a full-on Python implementation of a balancing
+simulation using Bang-bang, proportional and PID controllers:
 
         http://www.edparadis.com/pyode/
 
 
-Another PID loop implementation was found in cgkit's pidcontroller.py file, which also illuminated
-some errors in the www.edparadis.com PID loop implementation (see pidcontroller.py:
+Another PID loop implementation was found in cgkit's pidcontroller.py
+file, which also illuminated some errors in the www.edparadis.com PID
+loop implementation (see pidcontroller.py:
 
         http://gentoo.osuosl.org/distfiles/cgkit-2.0.0alpha7.tar.gz
 
@@ -46,3 +138,6 @@ A more complex PID controller was found in:
 
         http://matforge.org/fipy/browser/trunk/fipy/steppers/pidIterator.py?rev=1942&format=txt
 
+
+The final PID controller was based on one Ed Paradis' work, with some
+corrections deduced from other work.
