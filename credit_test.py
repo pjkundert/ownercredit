@@ -25,14 +25,32 @@ def test_near():
 
 
 def test_money_create_1():
+    
+    # What commodities back the currency, and how are they measured
+    # and priced?  These commodities are priced in standard Units of a
+    # specific quality, delivered at a certain market.
+    
     commodities				= {
-        # Commodity	Units	 -of-	Quality	  -at-	Market
+        # Commodity	 Units	 -of-	Quality	  -at-	Market
+        "gas":		( "l",		"Unleaded"	"Esso"	    ),
         "beer":		( "355ml",	"Pilsener",	"7-11"	    ),
         "bullets":	( "9mm",	"Springfield",	"Walmart"   ),
-        "gas":		( "1l", 	"Unleaded"	"Esso"	    ),
         }
 
+    # What wealth backs each unit of currency, and in what (constant)
+    # proportion?  As the prices of these commodities change, the
+    # value of the unit of currency fluctuates.  
+
     basket				= {
+        # Commodity	Amount	Proportion
+        'gas':		1,	1 / 3.
+        'beer':		2,	1 / 3.
+        'bullets':	4,	1 / 3.
+        }
+
+    # What are the current commodity prices (per unit, specified above)? 
+
+    prices				= {
         # Commodity	Price	
         "gas":		  1.00 /   1,	# BUX1.00
         "beer":		  6.00 /  12,	# BUX0.50
@@ -42,7 +60,9 @@ def test_money_create_1():
     # BUX, or &, are computed based on a the given commodities back,
     # over a rolling average over 5 units of time, beginning at 0.
     
-    buck				= credit.currency( '&', 'BUX', commodities, basket, 0.5, 2.0, 5, 0 )
+    buck				= credit.currency( '&', 'BUX',
+                                                           commodities, basket, prices,
+                                                           0.5, 2.0, 5, 0 )
 
     assert buck.window == 5
     assert near( buck.reference['beer'], 0.5 )
