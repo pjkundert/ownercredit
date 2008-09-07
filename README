@@ -48,18 +48,19 @@ and 100 rounds of ammunition for the 30.06.  Furthermore, we'll start
 off with a K (credit factor) of 0.5, we'll feed a factor of 3x the
 inflation error back into the K computation, we'll use a running
 average of commodity prices over a window of 3 time periods in
-computing inflation, and we'll start with time stamp 0:
+computing inflation, and we'll start with time stamp 0 (instead of the
+current actual time):
 
     buck			= credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.0,
-                                                   window = 3.,  now = 0. )
+                                                   window = 3.,  now = 0 )
 
 
 	
     Now, in the main loop of your program, you'll need to update the
 commodity prices from time to time, in order to allow BUX to compute a
-new credit factor.  Get a basket of commodity prices.  It must be
+new credit factor K.  Get a basket of commodity prices.  It must be
 complete (have all commodities), the first time you call update().
 We'll use a time unit of 1, instead of the (default) current real
 time:
@@ -88,11 +89,66 @@ deflation!), so we'll a result of &50.00 from buck:
     That's it!  
 
 
+    Here are the details of the credit interface:
+
+credit( commodities, ... )	-- create a new currency
+
+    commodities	- A dictionary describing the commodities (unused, for now)
+
+    basket	- A dictionary containing the number of units of each commodity backing the currency
+
+    multiplier	- How many units of currency does this basket represent
+
+    K		- Initial (guess) at an appropriate K.  The currencies PID loop will figure it out
+
+    Lk		- Limits on the range of K.  Unless people trade for no financial reason (eg. 
+		  crazy prices like 0, K will remain sane).  Remember, there are NO CREDITS in
+		  existence that are not backed by pledged wealth, so credits are equivalent to
+		  wealth, and should (eventually) be treated as such by the market.
+
+    damping	- A guess as to an appropriate level of in/deflation error feedback into K.
+
+    window	- How many time units we should filter (average) in/deflation over, in computing K.
+		  This will filter out anomolous pricing activity (momentary spikes, etc.)
+
+    now		- Time stamp.  Can be real time, game time, turns, etc., so long as it increases.
+
+
+credit.update( price, now )	-- Update prices, compute inflation and K
+
+    price	- A dictionary of commodity prices, per standard commodity unit
+
+    now		- An increasing time stamp of some kind
+
+    Updates the internal state of the currency.  Returns nothing.  Cannot be invoked multiple
+    times with the same timestamp.
+
+
+credit.credit( basket )		-- Compute the number of credits available for a commodity basket
+
+    basket	- A dictionary of commodity units pledged.
+
+    Computes and returns the number of credits issued, given the current commodity prices and K.
+
+
+credit.K() 		-- most recent K.
+credit.inflation()	-- most recent inflation factor
+credit.now()		-- most recent timestamp
+
+    Optionally supply an index (eg. 0, -1 (the default), 100...)
+
+credit.trend		-- the whole list of trend data, if you want it
+
+
+
+
 SIMULATION
 
    Run credit.py to see a simulation of a currency.  Adjust the
 commodity prices to see Inflation go up/down, and observe the K will
-decrease/increase 'til Inflation is restored to 0.
+decrease/increase 'til Inflation is once again restored to 0.  After 3
+time periods (adjustable), K will settle flat again, now that it has
+quenched any inflation/deflation.
 
    Run pid.py to see a PID controlled rocket.
 

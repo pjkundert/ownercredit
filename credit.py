@@ -47,7 +47,7 @@ class currency:
         basket			= { },			# Reference basket, specifying # Units and Proportion of value
         multiplier		= 1,			# How many units of currency does 'basket' represent
         K			= 0.5,			# Initial credit/wealth ratio
-        Lk			= ( 0.25, math.nan ),	# Allowed range of K (math.nan
+        Lk			= ( 0.0, math.nan ),	# Allowed range of K (math.nan means no limit)
         damping			= 3.0,			# Amplify corrective movement by this factor (too much: oscillation)
         window			= 7*24*60*60,		# Default to 1 week sliding average to filter currency value
         now			= time.time() ):	# Initial time (default to seconds)
