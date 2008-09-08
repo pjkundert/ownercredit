@@ -126,7 +126,7 @@ def ui( win, title = "Test" ):
     a0				= 0.0
     v0				= 0.0
     y0				= platform
-    thrust			= 0.0					# N (kg.m/s^s)
+    thrust			= 0.0					# N (kg.m/s^2)
 
     now				= 0.0
     autopilot			= pid( Kpid, Fset, Finp, Li, Lout, now )
@@ -236,7 +236,7 @@ def ui( win, title = "Test" ):
                        autopilot.D ),
                  row = 1 )
         message( win,
-                 "  f: % 7.2fkg.m/s^s (raw:% 7.2f, min:% 7.2f, max:% 7.2f, mass % 7.2fkg [M/m])"
+                 "  f: % 7.2fkg.m/s^2 (raw:% 7.2f, min:% 7.2f, max:% 7.2f, mass % 7.2fkg [M/m])"
                  % ( thrust, autopilot.out, autopilot.Lout[0], autopilot.Lout[1], mass ),
                  row = 2 )
         message( win,
