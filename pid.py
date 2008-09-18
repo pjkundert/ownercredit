@@ -113,7 +113,7 @@ def ui( win, title = "Test" ):
     Fset			= 1.0					#   or setpoint?
 
     Kpid			= (    2.0,      0.1,      1.0   )	# PID loop tuning
-    Lout			= ( math.nan, math.nan )		# No -'vethrust available, limit +'ve? Causes integral wind-up and overshoot
+    Lout			= ( math.nan, math.nan )		# No -'ve thrust available, limit +'ve? Causes integral wind-up and overshoot
     #Lout			= (    0.0,     50.0   )
     #Lout			= (    0.0,   math.nan )
     #Lout			= (    0.0,    100.0   )
@@ -130,6 +130,7 @@ def ui( win, title = "Test" ):
 
     now				= 0.0
     autopilot			= pid( Kpid, Fset, Finp, Li, Lout, now )
+    autopilot.I			= - g / Kpid[1]				# Pre-load integral for static balanced thrust
     start			= autopilot.now
 
     last			= time.time()
