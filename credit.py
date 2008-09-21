@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 
 """
-credit.money	-- Basic credit system (money) computations
+credit.currency	-- Basic credit system currency computations
 
     Implements basic credit system functionality.
+
+  o Creates a currency based on a basket of commodities
+  o Computes inflation/deflation from current commodity prices
+  o Increases/decreases credit to drive currency value (prices) back to normal
+ 
 """
 
 __author__ 			= "Perry Kundert (perry@kundert.ca)"
@@ -36,7 +41,6 @@ class currency:
     many units of each commodity.  Then, we adjust one parameters -- the credit ratio "K" -- to keep
     the current value of the currency (as measured by the market price of those commodities -- as
     close to the specified value as possible.
-    
     """
 
     def __init__(
@@ -111,16 +115,17 @@ class currency:
         """
         update( price )
         
-        Adjust currency based on the changes in given basket of commodity prices (may be a
-        subset of reference basket), at the given time.  Currently simply implements a linear ratio
-        of the 1-window rolling average price vs. the reference commodity basket price.
+        Adjust currency based on the changes in given basket of commodity prices (may be a subset of
+        reference basket after the initial update), at the given time.  Currently simply implements
+        a linear ratio of the 1-window rolling average price vs. the reference commodity basket
+        price.
 
         You may invoke multiple call to update without computing 'K' or advancing 'self.now()', by
-        supplying the argument now <= self.now()
+        supplying the argument now == self.now(); it is illegal to try to move time backwards.
         """
 
-        if not ( now > self.now()):
-            raise Exception, "Attempt to update multiple times for same (or previous) time period"
+        if ( now < self.now()):
+            raise Exception, "Attempt to update multiple times for previous time period"
 
         # Update current prices from supplied dictionary, and compute inflation.  We must be
         # supplied a price list which contains all of our currency's commodity basket!  For each
@@ -134,7 +139,10 @@ class currency:
             if c in price.keys():
                 self.price[c]	= price[c]
 
-        # Use latest prices (perhaps from prior updates) to update currency inflation
+        if ( now <= self.now()):
+            return
+
+        # Time has advanced.  Use latest prices to update currency inflation
         self.total		= 0.
         for c,u in self.basket.items():
             self.total	       += u * self.price[c]
@@ -165,8 +173,6 @@ class currency:
 
         We keep no track of the "pledged" commodities; we only report the amount of credit it would
         be worth.
-
-        
         """
 
         value			= 0.
@@ -310,7 +316,7 @@ def ui( win, title = "Test" ):
         win.refresh()
         input			= win.getch()
 
-        # New frame of animateion
+        # New frame of animation
         win.clear()
 
         # Compute time advance, after time warp.  Advance now only by increments.
@@ -391,7 +397,6 @@ def ui( win, title = "Test" ):
                  "In/decrease commodity values; [Aa]rrays, [Ee]nergy, [Mm]etal; see K change, 'til Inflation restored to 0.0000",
                  row = 3 )
         if ( now > gal.now() ):
-
             # Time has advanced!  Update the galactic credit with the current commodit prices
             gal.update( price, now )
 

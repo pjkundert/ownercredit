@@ -43,17 +43,17 @@ def test_money_create_1():
 
     multiplier			= 100		# 100 BUX is:
     basket			= {
-        # Commodity	Amount	Proportion
-        'beer':	       25,		# One for the road, eh!
-        'gas':	       50,		# Out to the hunt, and back...
-        'bullets':    100,		# Should be enough to bag that Elk!
+        # Commodity	Amount (Proportion)
+        'beer':	         25,		# One for the road, eh!
+        'gas':	         50,		# Out to the hunt, and back...
+        'bullets':      100,		# Should be enough to bag that Elk!
         }
 
     # What are the current commodity prices (per unit, specified above)?  These don't really matter
     # individually or proportionally, but the value of 100.00 BUX is always able to purchase the
-    # entire basket.  We don't need them, in order to establish the currency, but we'll see later
-    # what they are used for.  We'll define them here, so you can see how the basket of commodities
-    # corresponds to 100.00 BUX:
+    # entire basket.  We don't need them yet (in order to establish the currency), but we'll see
+    # later what they are used for.  We'll define them here, so you can see how the above basket of
+    # commodities corresponds (at current prices) to 100.00 BUX:
 
     prices			= {
         # Commodity	Price	
@@ -115,9 +115,9 @@ def test_money_create_1():
     assert near( buck.K(), 		0.4396 )	# infl. same, but rate of change slows, K pops back a bit
     assert near( buck.credit( stuff ),	4.7915 )
 
-    # Things go back to normal!  K should stay fixed (after 3 time periods, because we filter
-    # input!), because it apparently set things right...  Not everything back the same
-    # price, but basket now worth &100.00 again.
+    # Things go back to normal!  K should stay fixed (after 3 time periods, because we filter input
+    # over a 'window' of 3.0 time units!), because it apparently set things right...  Not everything
+    # back the same price, but basket now worth &100.00 again.
 
     buck.update( {
         'gas': 		0.99 /  1,	# &49.50 /   50 litres
