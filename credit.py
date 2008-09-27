@@ -78,11 +78,20 @@ class currency:
         # is 1.0, then the error term will be 0, P and D will remain 0, and I will not change, K
         # will remain at the current value.
 
-        #			    P        I        D
-        Kpid			= ( damping, 0.1,     damping / 2. )
+        Kp			= damping
+        Ki			= 0.1
+        Kd			= damping / 2.0
+        Kpid			= ( Kp, Ki, Kd )
+
+        # In addition to hard-limiting output to Lk, we'll actually limit the integral too.  It will
+        # put a "soft" limit on output, because it is the error Integral (sum of errors) that
+        # produces the gross constant output value (the other terms P and D are transient, and
+        # immediately cease influencing output when the error disappears).  Then, we'll clamp the
+        # momentary "spikes" above/below the provided range Lk, if error is extreme.
+        Li			= ( Lk[0] / Ki, Lk[1] / Ki )	# will retain math.nan, if provided
 
         self.stabilizer		= pid.pid( Kpid = Kpid,
-                                           Finp = window, Lout = Lk,
+                                           Finp = window, Li = Li, Lout = Lk,
                                            now = now )
         self.stabilizer.I	= K / self.stabilizer.Kpid[1]
 
@@ -261,9 +270,10 @@ def ui( win, title = "Test" ):
     Fset			= 1.0					#   or setpoint?
 
     Kpid			= (    2.0,      1.0,      2.0   )	# PID loop tuning
-    Lout			= ( math.nan, math.nan )		# No -'vethrust available, limit +'ve? Causes integral wind-up and overshoot
-    Li				= ( math.nan, math.nan )
-    Ly				= ( math.nan, math.nan )		# Lauch pad height
+    Lk				= (    0.1,      0.9   )		# Limit K to practical values (no zero or infinite credit)
+#    Lk				= ( math.nan, math.nan )
+    Li				= ( math.nan, math.nan )		# Avoid integral wind-up if prices don't respond
+#    Li				= ( math.nan, math.nan )
 
     now				= 0.0
 
@@ -298,7 +308,7 @@ def ui( win, title = "Test" ):
     window			= 3.0
     gal				= currency( '#', 'GAL',
                                             commodities, basket, multiplier,
-                                            K = K, damping = damping,
+                                            K = K, Lk = Lk, damping = damping,
                                             window = window,
                                             now = now )
 
@@ -394,7 +404,7 @@ def ui( win, title = "Test" ):
                  "now:% 7.2f, K:% 7.2f" % ( gal.now(), gal.K() ),
                  row = 2 )
         message( win,
-                 "In/decrease commodity values; [Aa]rrays, [Ee]nergy, [Mm]etal; see K change, 'til Inflation restored to 0.0000",
+                 "In/decrease commodity values; [Aa]rrays, [Ee]nergy, [Mm]etal; see K change, 'til Inflation restored to 1.0000",
                  row = 3 )
         if ( now > gal.now() ):
             # Time has advanced!  Update the galactic credit with the current commodit prices
@@ -415,7 +425,7 @@ if __name__=='__main__':
         stdscr=curses.initscr()
         curses.noecho() ; curses.cbreak(); curses.halfdelay( 1 )
         stdscr.keypad(1)
-        ui( stdscr, title="Rocket" )        # Enter the mainloop
+        ui( stdscr, title="Rocket" )	# Enter the mainloop
         stdscr.keypad(0)
         curses.echo() ; curses.nocbreak()
         curses.endwin()                 # Terminate curses

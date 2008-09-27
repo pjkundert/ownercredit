@@ -25,9 +25,9 @@ isn't checked):
 
     commodities			= {
         # Commodity	 Units	 -of-	Quality	  -at-	Market
-        "gas":		( "l",		"Unleaded"	"Exxon"	    ),
         "beer":		( "355ml",	"Pilsener",	"7-11"	    ),
-        "bullets":	( "9mm",	"Springfield",	"Walmart"   ),
+        "gas":		( "l",		"Unleaded"	"Exxon"	    ),
+        "bullets":	( "30.06",	"Springfield",	"Walmart"   ),
         }
 
     Next, specify the basket of these commodities that back a certain
@@ -75,13 +75,13 @@ time:
 
 
     Since we presented a set of commodity prices that worked out to a
-price of &100.00 for the full basket of BUX commodities, we have an
-inflation of 0 (buck.inflation() == 0), and hence buck.K() will be 0.5
+price of &100.00 for the full basket of BUX commodities, we have no
+inflation (buck.inflation() == 1.0), and hence buck.K() will be 0.5
 (the initial value).  So, how do we get credit out of this system?  We
 pledge a basket of commodities, composed of 1 or more of the
 currencies commodities.  We could pledge the initial basket we used to
 create the currency.  It should be worth &100.00 (no inflation or
-deflation!), so we'll a result of &50.00 from buck:
+deflation!), so we'll see a resultant value of &50.00 credit:
 
     buck.credit( basket )
 
@@ -89,9 +89,9 @@ deflation!), so we'll a result of &50.00 from buck:
     That's it!  
 
 
-    Here are the details of the credit interface:
+    Here are the details of the credit.currency interface:
 
-credit( commodities, ... )	-- create a new currency
+currency( commodities, ... )	-- create a new currency
 
     commodities	- A dictionary describing the commodities (unused, for now)
 
@@ -114,7 +114,7 @@ credit( commodities, ... )	-- create a new currency
     now		- Time stamp.  Can be real time, game time, turns, etc., so long as it increases.
 
 
-credit.update( price, now )	-- Update prices, compute inflation and K
+currency.update( price, now )	-- Update prices, compute inflation and K
 
     price	- A dictionary of commodity prices, per standard commodity unit
 
@@ -124,20 +124,20 @@ credit.update( price, now )	-- Update prices, compute inflation and K
     times with the same timestamp.
 
 
-credit.credit( basket )		-- Compute the number of credits available for a commodity basket
+currency.credit( basket )	-- Compute the number of credits available for a commodity basket
 
     basket	- A dictionary of commodity units pledged.
 
     Computes and returns the number of credits issued, given the current commodity prices and K.
 
 
-credit.K() 		-- most recent K.
-credit.inflation()	-- most recent inflation factor
-credit.now()		-- most recent timestamp
+currency.K() 		-- most recent K.
+currency.inflation()	-- most recent inflation factor
+currency.now()		-- most recent timestamp
 
     Optionally supply an index (eg. 0, -1 (the default), 100...)
 
-credit.trend		-- the whole list of trend data, if you want it
+currency.trend		-- the whole list of trend data, if you want it
 
 
 
@@ -146,11 +146,22 @@ SIMULATION
 
    Run credit.py to see a simulation of a currency.  Adjust the
 commodity prices to see Inflation go up/down, and observe the K will
-decrease/increase 'til Inflation is once again restored to 0.  After 3
-time periods (adjustable), K will settle flat again, now that it has
+decrease/increase 'til Inflation is once again restored to 1.0
+(commodity prices respond to the increase/decrease in credit).  After
+3 time periods (adjustable), K will settle flat again, now that it has
 quenched any inflation/deflation.
 
-   Run pid.py to see a PID controlled rocket.
+    Note that K will NOT settle out, if prices do not respond; this
+would be impossible in a true economy, because A) credit is withdrawn
+with force when K decreases (beside the obvious large financial
+incentive to sell wealth for credit at the presently inflated price),
+and there is a large financial incentive to pledge wealth for credit
+when K increases, and buy the (presently under-priced) commodity or
+commodities cheaply, correcting the commodity price deflation.
+
+   Run pid.py to see a PID controlled rocket, illustrating the effect
+that modulating the P, I and D constant factors has on balancing a
+dynamically stable system.
 
 
 ALGORITHM
