@@ -54,7 +54,7 @@ current actual time):
     buck			= credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.0,
-                                                   window = 3.,  now = 0 )
+                                                   window = 3., now = 0 )
 
 
 	
