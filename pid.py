@@ -74,7 +74,8 @@ class controller( value ):
         if self.Ki:
             self.I		= ( output - self.P * self.Kp ) / self.Ki
 
-        self.value		= output
+        self.output		= output				# Raw computed output
+        self.value		= output				# Limited output value
 
 
     def loop( self,
@@ -83,10 +84,10 @@ class controller( value ):
               now 		= None,					# Time (default: now)
 	      Lout		= ( math.nan, math.nan ) ):		# Output limiting (eg. output saturated)
         """
-        Compute the new output, based on the latest setpoint and process value.  Optionally perform
-        output limiting and Integral anti-windup (if output is saturated).  We do output limiting
-        here (instead of remembering it in __init__), to allow for dynamic output limits that change
-        over time.
+        Compute the new output value, based on the latest setpoint and process value.  Optionally
+        perform output limiting and Integral anti-windup (if output is saturated).  We do output
+        limiting here (instead of remembering it in __init__), to allow for dynamic output limits
+        that change over time.
         """
         if now is None:
             now			= time.time()
@@ -95,7 +96,7 @@ class controller( value ):
             # New process, setpoint and error term only contribute if time has elapsed!
             self.now		= now
             P			= setpoint - process			# Proportional: error between setpoint and process value
-            I			= self.I + P * dt			# Integral:     total error over time
+            I			= self.I + P * dt			# Integral:     total error under curve over time
             D			= ( P - self.P ) / dt			# Derivative:   instantanous rate of change of error
             self.P		= P					#               (must remember for D computation over time)
             self.D		= D					# (not necessary, but useful for monitoring)
@@ -104,25 +105,39 @@ class controller( value ):
             # Integral anti-windup computation -- only remembering new Integral if output value not
             # clamped (or if new Integral would reduce Output clamping)!  Remember, any comparison
             # against math.nan is False.
-            output		= (   P * self.Kp
+            self.output		= (   P * self.Kp
                                     + I * self.Ki
                                     + D * self.Kd )
-            if output < Lout[0]:
+            if self.output < Lout[0]:
                 # Clamp output on low end, only remember increasing Integral
                 self.value	= Lout[0]
                 if I > self.I:
                     self.I	= I
-            elif output > Lout[1]:
+            elif self.output > Lout[1]:
                 # Clamp output on high end, only remember decreasing Integral
                 self.value	= Lout[1]
                 if I < self.I:
                     self.I	= I
             else:
                 # No clamping; use output and Integral as-is
-                self.value	= output
+                self.value	= self.output
                 self.I		= I
 
+        # Return processed value; raw 'self.output' retains computed output value
         return self.value
+
+    def contribution( self ):
+        """
+        Compute the fractional contribution of each of P, I and D toward raw output.  We must deduce
+        I, because it may not have been saved (if integral anti-windup kicked in).
+        """
+        try:
+            Op			= self.P * self.Kp
+            Od			= self.D * self.Kd
+            Oi			= self.output - Op - Od
+            return ( Op / self.output, Oi / self.output, Od / self.output )
+        except:
+            return ( math.nan, math.nan, math.nan )
 
 
 # 
@@ -196,6 +211,8 @@ class pid:
                                     + self.I * self.Kpid[1]
                                     + self.D * self.Kpid[2] )
         return clamp( self.out, self.Lout )
+
+
 
 def message( window, text, row = 23, col = 0 ):
     window.move( row, col )

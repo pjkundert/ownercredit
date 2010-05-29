@@ -45,6 +45,29 @@ def clamp( val, lim ):
         return lim[1]
     return val
 
+# 
+# scale		-- Transform a value from one range to another, without clipping
+#
+#     No math.nan allowed.
+# 
+def scale( val, lim, rng ):
+    """Map 'val' from within bounds 'lim', to new range 'rng'"""
+    return ( rng[0]
+             + ( val
+                 - lim[0] )
+             * ( rng[1] - rng[0] )
+             / ( lim[1] - lim[0] ))
+
+# 
+# magnitude	-- Return the approximate base magnitude of the value, in 'base' ( 10 )
+#
+#     Handy for computing up/down modifiers for values.  For example:
+#
+#      23 ==> 1.
+#     .23 ==>  .1
+# 
+def magnitude( val, base = 10 ):
+    return pow( base, round( math.log( val ) / math.log( base )) - 1 )
 
 # 
 # misc.value	-- Base class for things that should generally act like a float/int
