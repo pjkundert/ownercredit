@@ -16,8 +16,9 @@ all:				ownercredit-$(VERSION).zip	\
 clean:
 	rm -rf /tmp/ownercredit-$(VERSION) *.pyc
 
+# Only run tests in this directory.
 test:
-	py.test --nocapture
+	py.test --nocapture *_test.py
 
 ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
 	tar -C /tmp -czvf $@ ownercredit-$(VERSION)

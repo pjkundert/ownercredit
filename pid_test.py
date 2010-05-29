@@ -1,5 +1,4 @@
-
- #!/usr/bin/env python
+#!/usr/bin/env python
 
 """
 Implements tests for the pid module.
