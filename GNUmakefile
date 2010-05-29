@@ -16,10 +16,13 @@ all:				ownercredit-$(VERSION).zip	\
 clean:
 	rm -rf /tmp/ownercredit-$(VERSION)
 
-ownercredit-$(VERSION).tgz:		/tmp/ownercredit-1.1.0
-	tar -C /tmp -czvf $@ ownercredit-1.1.0
+test:
+	py.test --nocapture
 
-ownercredit-$(VERSION).zip:		/tmp/ownercredit-1.1.0
+ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
+	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
+
+ownercredit-$(VERSION).zip:		/tmp/ownercredit-$(VERSION)
 	( cd /tmp && zip -r - $(notdir $<) ) > $@
 
 /tmp/ownercredit-$(VERSION):

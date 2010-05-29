@@ -27,20 +27,28 @@ from misc import *	# math.nan, etc.
 
 class currency:
     """
-    Implements a currency based on a basket of commodities, and computes K over time.
+    Implements a currency based on a basket of commodities, and computes multiplier K over time.
 
     Each unit of currency retains a specific value over time -- exactly sufficient to buy a specific
-    basket of goods.  Since the intrinsic value of these goods may vary over time, the value of the
-    currency will fluctuate with them.  However, most currencies would strive to be backed by goods
-    that are foundational to the economy in which the currency is traded, making this variation
-    invisible to holders of the currency -- the currency will buy, today, exactly what it bought
-    years ago, and (more importantly), it will buy exactly what holding the physical basket of
-    commodities would buy!
+    basket of goods.  Since the intrinsic value (price) of these goods may vary over time, the value
+    of the currency units will fluctuate with them.  Most currencies would strive to be backed by
+    goods that are foundational to the economy in which the currency is traded, making this
+    variation invisible to holders of the currency -- the currency will buy, today, exactly what it
+    bought years ago, and (more importantly), it will buy exactly what holding the physical basket
+    of commodities would buy!
 
     Therefore, to describe a currency, we specify that so many units of currency corresponds to so
     many units of each commodity.  Then, we adjust one parameters -- the credit ratio "K" -- to keep
     the current value of the currency (as measured by the market price of those commodities -- as
     close to the specified value as possible.
+
+    Specifying 'window' a simple scalar value selects simple averaging of all inflation values
+    within the given time window, with equal weighting (not time-weighted).  This is good if new
+    commodity values (and hence inflation values) are supplied on a regular basis.  If not,
+    specify 'window' as a ( interval, 1.0 ) tuple to select time-weighted averaging.  You will
+    gain better average accuracy, at the expense of a slight delay in sensitivity.  You'll want to do
+    this especially if you have momentary "spikes" in commodity values that last shorter than the 
+    average amount commodity basket sample time.
     """
 
     def __init__(
@@ -54,10 +62,13 @@ class currency:
         Lk			= ( 0.0, math.nan ),	# Allowed range of K (math.nan means no limit)
         damping			= 3.0,			# Amplify corrective movement by this factor (too much: oscillation)
         window			= 7*24*60*60,		# Default to 1 week sliding average to filter currency value
-        now			= time.time() ):	# Initial time (default to seconds)
-
-        """ Establish the fundamentals and initial conditions of the currency.  It will always be
-        valued based on the initial proportional relationship between the commodities. """
+        now			= None ):		# Initial time (default to seconds)
+        """
+        Establish the fundamentals and initial conditions of the currency.  It will always be
+        valued based on the initial proportional relationship between the commodities.
+        """
+        if now is None:
+            now			= time.time()
 
         self.symbol		= symbol
         self.label		= label		
@@ -119,8 +130,7 @@ class currency:
     def update(
         self,
         price			= { },
-        now 			= time.time() ):
-
+        now 			= None ):
         """
         update( price )
         
@@ -132,8 +142,9 @@ class currency:
         You may invoke multiple call to update without computing 'K' or advancing 'self.now()', by
         supplying the argument now == self.now(); it is illegal to try to move time backwards.
         """
-
-        if ( now < self.now()):
+        if now is None:
+            now			= time.time()
+        if now < self.now():
             raise Exception, "Attempt to update multiple times for previous time period"
 
         # Update current prices from supplied dictionary, and compute inflation.  We must be
@@ -148,7 +159,7 @@ class currency:
             if c in price.keys():
                 self.price[c]	= price[c]
 
-        if ( now <= self.now()):
+        if now <= self.now():
             return
 
         # Time has advanced.  Use latest prices to update currency inflation
@@ -406,7 +417,7 @@ def ui( win, title = "Test" ):
         message( win,
                  "In/decrease commodity values; [Aa]rrays, [Ee]nergy, [Mm]etal; see K change, 'til Inflation restored to 1.0000",
                  row = 3 )
-        if ( now > gal.now() ):
+        if now > gal.now():
             # Time has advanced!  Update the galactic credit with the current commodit prices
             gal.update( price, now )
 

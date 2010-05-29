@@ -3,9 +3,18 @@
 """
 pid.controller	-- PID loop controller
 
-    Implements a PID loop controller.  Controls a variable based on its velocity and acceleration
-away from a steady state (0 velocity, 0 acceleration).
+    Implements a PID loop controller.  Controls an output value based on the input value's velocity
+and acceleration (change and rate of change) away from a setpoint.
 
+    PID contants are provided in Kpid = ( Kp, Ki, Kd ), and specify what proportion of each
+error component should be fed back into computing the output.
+
+        Kp -- amount of latest error should be fed back into output
+        Ki -- amount of total error integral (sum of errors) should be fed back into output
+        Kd -- amount of the last error derivative (rate of change) to included in output
+
+    Depending on the relationship between the setpoint/value and the output, these factors will need
+to be tuned.
 """
 
 __author__ 			= "Perry Kundert (perry.kundert@enbridge.com)"
@@ -15,41 +24,40 @@ __copyright__			= "Copyright (c) 2008 Perry Kundert"
 __license__			= "GNU General Public License V3 (or higher)"
 
 import time
+import filtered
 from misc import *
 
-
-
 # 
-# pid.pid	-- Collect error and adjust output to compensate
+# pid.controller-- Collect error and adjust output to compensate
 # 
-class pid:
+#     Implements a PID control loop, but acts like a simple integer or float value
+# in most use cases.
+# 
+class controller:
     """
     Modulates output based on error between current value and desired setpoint.
 
-    PID contants are provided in Kpid = ( Kp, Ki, Kd ), and specify what proportion of each
-    error component should be fed back into computing the output.
-
-        Kp -- amount of latest error should be fed back into output
-        Ki -- amount of total error integral (sum of errors) should be fed back into output
-        Kd -- amount of the last error derivative (rate of change) to included in output
-
-    Depending on the relationship between the setpoint/value and the output, these factors
-    will need to be tuned 
-    
-    The setpoint and input can optionally be filtered (averaged) over a time period, by providing
-    non-zero Finp/Fset.
-    
     """
     def __init__( self,
                   Kpid 		= ( 1.0, 1.0, 1.0 ),			# PID loop constants
-                  Fset		= 0.0,					# Filter setpoint over this interval
-                  Finp		= 0.0,					# Filter input over this interval
+                  Fset		= ( 0.0, math.nan ),			# Filter setpoint and/or input valus over simple averaged interval
+                  Finp		= ( 0.0, math.nan ),			#  or, (optionally) time-weighted w/ non-NaN initial value
                   Li		= ( math.nan, math.nan ),		# Limit integral (anti-windup)
                   Lout		= ( math.nan, math.nan ),		# Limit output (anti-saturation)
-                  now		= time.time() ):
+                  now		= None ):
+        """
+        Given the initial PID loop constants Kpid, setpoint, input and target output, computes the
+        appropriate instantaneous I (Integral) and D (Derivative) to yield the target output.  This
+        means that, so long as the error term (setpoint - input) doesn't change, the output value
+        won't change.
 
-	self.set		= filter( Fset, now )
-        self.inp		= filter( Finp, now )
+        If set of output limits are provided, then the Integral will automatically be limited
+        """
+        if now is None:
+            now			= time.time()
+
+	self.set		= filtered.filter( Fset, now )			# Optionally time-weighted filtering w/ non-NaN initial values
+        self.inp		= filtered.filter( Finp, now )
         self.out		= 0.					# Raw output, before clamping to Lout
         
         self.Finp		= Finp
@@ -66,17 +74,122 @@ class pid:
         self.err		= 0.		# Assume we are at setpoint
 
     def loop( self,
-              setpoint,				# Current setpoint
-              input,				# Current value
-              now 		= time.time() ):
+              setpt,				# Current setpoint
+              value,				# Current value
+              now 		= None ):
+        if now is None:
+            now			= time.time()
         dt			= now - self.now
         if dt > 0:
-
             # New input, setpoint and error term only contribute if time has elapsed!  Get the
-            # filtered value.
-            inp			= self.inp.add( input,    now )
-            set			= self.set.add( setpoint, now )
-            err			= set - inp
+            # filtered value.  Simple or time-weighted selected at construction.
+            inp			= self.inp.add( value, now )
+            sep			= self.set.add( setpt, now )
+            err			= sep - inp
+
+            # Avoid integral wind-up by clamping to range limits Li
+            self.I		= clamp( self.I + err * dt, self.Li )
+            self.D		= ( err - self.err ) / dt
+            self.err		= err
+            self.now		= now
+
+            self.out		= (      err * self.Kpid[0]
+                                    + self.I * self.Kpid[1]
+                                    + self.D * self.Kpid[2] )
+        return clamp( self.out, self.Lout )
+
+    # Supply the basic behaviours of an integer or float value.
+    def __str__( self ):
+        return str( self.value )
+    def __int__( self ):
+        return int( self.value )
+    def __float__( self ):
+        return float( self.value )
+        
+    def __sub__( self, rhs ):
+        return self.value - rhs
+    def __rsub__( self, lhs ):
+        return lhs - self.value
+
+    def __add__( self, rhs ):
+        return self.value + rhs
+    def __radd__( self, lhs ):
+        return lhs + self.value
+
+    def __mul__( self, rhs ):
+        return self.value * rhs
+    def __rmul__( self, lhs ):
+        return lhs * self.value
+
+    def __div__( self, rhs ):
+        return self.value / rhs
+    def __rdiv__( self, lhs ):
+        return lhs / self.value
+
+    def __abs__( self ):
+        return abs( self.value )
+
+
+# 
+# pid.pid	-- Collect error and adjust output to compensate, using explicitly supplied constraints
+# 
+# WARNING
+# 
+#     This original implementation of a PID loop used explicitly supplied constraints to
+# (optionally) filter various input and output parameters.  This turned out to be clumsy.  Use
+# pid.controller instead.
+# 
+class pid:
+    """
+    Modulates output based on error between current value and desired setpoint.
+
+    The setpoint and input can optionally be filtered (averaged) over a time period, by providing
+    non-zero Finp/Fset.  In addition, time-weighted filtering can be selected by providing a non-NaN
+    initial value for setpt and/or value.  Otherwise, simple averaging is used over the time period
+    (fine, if identical time sample periods are used; responds quicker to new values, but won't
+    provide a smooth ramp on start-up).
+    
+    """
+    def __init__( self,
+                  Kpid 		= ( 1.0, 1.0, 1.0 ),			# PID loop constants
+                  Fset		= ( 0.0, math.nan ),			# Filter setpoint and/or input valus over simple averaged interval
+                  Finp		= ( 0.0, math.nan ),			#  or, (optionally) time-weighted w/ non-NaN initial value
+                  Li		= ( math.nan, math.nan ),		# Limit integral (anti-windup)
+                  Lout		= ( math.nan, math.nan ),		# Limit output (anti-saturation)
+                  now		= None ):
+        if now is None:
+            now			= time.time()
+
+	self.set		= filtered.filter( Fset, now )			# Optionally time-weighted filtering w/ non-NaN initial values
+        self.inp		= filtered.filter( Finp, now )
+        self.out		= 0.					# Raw output, before clamping to Lout
+        
+        self.Finp		= Finp
+        self.Fset		= Fset
+        self.Kpid		= Kpid
+        self.Li			= Li		# Integral anti-wind-up (eg. output saturated, doesn't reduce error term)
+        self.Lout		= Lout		# Output limiting (eg. output saturated)
+
+        self.now		= now		# Last time computed
+        self.err		= 0.		#   with this error term
+	self.I			= 0.		#   and integral of error over time
+        self.D			= 0.		# Remember for dt == 0. case...
+
+        self.err		= 0.		# Assume we are at setpoint
+
+    def loop( self,
+              setpt,				# Current setpoint
+              value,				# Current value
+              now 		= None ):
+        if now is None:
+            now			= time.time()
+        dt			= now - self.now
+        if dt > 0:
+            # New input, setpoint and error term only contribute if time has elapsed!  Get the
+            # filtered value.  Simple or time-weighted selected at construction.
+            inp			= self.inp.add( value, now )
+            sep			= self.set.add( setpt, now )
+            err			= sep - inp
 
             # Avoid integral wind-up by clamping to range limits Li
             self.I		= clamp( self.I + err * dt, self.Li )
@@ -106,21 +219,21 @@ def ui( win, title = "Test" ):
     g				= -9.81					# m/s^2
     mass			= 1.					# kg
     platform			= 0.0					# m, height of launch pad
-    goal			= platform + rows / 2.			# m
+    goal			= platform + rows / 4.			# m
 
-
-    Finp			= 0.					# Filter input?
-    Fset			= 1.0					#   or setpoint?
-
-    Kpid			= (    2.0,      0.1,      1.0   )	# PID loop tuning
-    Lout			= ( math.nan, math.nan )		# No -'ve thrust available, limit +'ve? Causes integral wind-up and overshoot
+    Kpid			= (    5.0,      1.0,     2.0   )	# PID loop tuning
+    #Lout			= ( math.nan, math.nan )		# No -'ve thrust available, limit +'ve? Causes integral wind-up and overshoot
     #Lout			= (    0.0,     50.0   )
     #Lout			= (    0.0,   math.nan )
     #Lout			= (    0.0,    100.0   )
-    Li				= ( math.nan, math.nan )
+    Lout			= (    0.0,    mass * 100.0   )
+
+    #Li				= ( math.nan, math.nan )
+    Li				= (    0.0,   math.nan )
     #Li				= (    0.0,    100.0   ) 		# error integral limits; avoiding integral loading causes uncorrected error?
-    Ly				= ( math.nan, math.nan )		# Lauch pad height
-    #Ly				= ( platform, math.nan )		# Lauch pad height
+
+    #Ly				= ( math.nan, math.nan )		# Lauch pad height
+    Ly				= ( platform, math.nan )		# Lauch pad height
 
 
     a0				= 0.0
@@ -128,9 +241,12 @@ def ui( win, title = "Test" ):
     y0				= platform
     thrust			= 0.0					# N (kg.m/s^2)
 
+    Fset			= ( 1.0, platform )			# Filter setpoint?
+    Finp			= ( 0.0, math.nan )			#   or input?
+
     now				= 0.0
     autopilot			= pid( Kpid, Fset, Finp, Li, Lout, now )
-    autopilot.I			= - g / Kpid[1]				# Pre-load integral for static balanced thrust
+    #autopilot.I			= - g / Kpid[1]				# Pre-load integral for static balanced thrust
     start			= autopilot.now
 
     last			= time.time()
@@ -158,6 +274,8 @@ def ui( win, title = "Test" ):
                 autopilot.set.interval += .1
             if chr( input ) == 's':
                 autopilot.set.interval -= .1
+                if autopilot.set.interval - .0999 < 0.:			# Ensure we don't go "tiny" (eg. 0.0000000001232)
+                    autopilot.set.interval = 0.
 
             if chr( input ) == 'V':
                 autopilot.inp.interval += .1
@@ -249,8 +367,8 @@ def ui( win, title = "Test" ):
                  % ( v, v_act, v_ave_act ),
                  row = 4 )
         message( win,
-                 "  Y: % 7.2fm        (err:% 7.2f, goal:% 7.2f [k/j])"
-                 % ( y, autopilot.err, goal ),
+                 "  Y: % 7.2fm        (err:% 7.2f, goal:% 7.2f [k/j], setp:% 7.2f"
+                 % ( y, autopilot.err, goal, autopilot.set.get() ),
                  row = 5 )
 
         # a0			= a_act
@@ -272,15 +390,15 @@ def ui( win, title = "Test" ):
 	if int(  c ) >= 0 and int(  c ) < rows:
             win.addstr( int( c )     , cols / 2-7, 'goal->' )
 	if int( fc ) >= 0 and int( fc ) < rows:
-            win.addstr( int( fc )     , cols / 2+1, '<-set' )
+            win.addstr( int( fc )    , cols / 2+1, '<-set' )
 	if int( fi ) >= 0 and int( fi ) < rows:
-            win.addstr( int( fi )     , cols / 2+1, '<-inp' )
+            win.addstr( int( fi )    , cols / 2+1, '<-inp' )
 	if int(  r)  >= 2 and int(  r ) < rows + 2:
 	    win.addstr( int( r ) - 2 , cols / 2,   '^' ) # rocket
 	if int(  r)  >= 1 and int(  r ) < rows + 1:
 	    win.addstr( int( r ) - 1 , cols / 2,   '|' )
 	if int(  r)  >= 0 and int(  r ) < rows:
-	    win.addstr( int( r )     , cols / 2,   ";'`^!."[ int( now * 100 ) % 6 ] )
+	    win.addstr( int( r )     , cols / 2,   ";'`^!."[ int( now * 97 ) % 6 ] )
 
 
 

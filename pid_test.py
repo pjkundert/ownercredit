@@ -15,7 +15,7 @@ __license__				= "GNU General Public License, Version 3 (or later)"
 import pid
 from misc import *
 
-def test_controller():
+def test_pid_pid():
     control		= pid.pid( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
 
     assert near( control.loop( 1.0, 1.0, now = 1. ),   0.0000 )
