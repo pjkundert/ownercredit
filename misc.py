@@ -48,15 +48,15 @@ def clamp( val, lim ):
 # 
 # scale		-- Transform a value from one range to another, without clipping
 #
-#     No math.nan allowed.
+#     No math.nan allowed or zero-sized domains or ranges.  Works for either
+# increasing or decreasing ordering of domains or ranges.
 # 
-def scale( val, lim, rng ):
-    """Map 'val' from within bounds 'lim', to new range 'rng'"""
+def scale( val, dom, rng ):
+    """Map 'val' from domain 'dom', to new range 'rng'"""
     return ( rng[0]
-             + ( val
-                 - lim[0] )
+             + ( val    - dom[0] )
              * ( rng[1] - rng[0] )
-             / ( lim[1] - lim[0] ))
+             / ( dom[1] - dom[0] ))
 
 # 
 # magnitude	-- Return the approximate base magnitude of the value, in 'base' ( 10 )
