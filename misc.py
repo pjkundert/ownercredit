@@ -44,3 +44,48 @@ def clamp( val, lim ):
     if ( val > lim[1] ):
         return lim[1]
     return val
+
+
+# 
+# misc.value	-- Base class for things that should generally act like a float/int
+# 
+class value:
+    """
+    Acts like an integer or float in most use cases.  Use as a base class for
+    things that want to have a simple integer or float value type interface.
+    """
+    __slots__			= [ 'value' ]
+    def __init__( self,
+                  value		= 0 ):
+
+        self.value		= value
+
+    def __str__( self ):
+        return str( self.value )
+    def __int__( self ):
+        return int( self.value )
+    def __float__( self ):
+        return float( self.value )
+        
+    def __sub__( self, rhs ):
+        return self.value - rhs
+    def __rsub__( self, lhs ):
+        return lhs - self.value
+
+    def __add__( self, rhs ):
+        return self.value + rhs
+    def __radd__( self, lhs ):
+        return lhs + self.value
+
+    def __mul__( self, rhs ):
+        return self.value * rhs
+    def __rmul__( self, lhs ):
+        return lhs * self.value
+
+    def __div__( self, rhs ):
+        return self.value / rhs
+    def __rdiv__( self, lhs ):
+        return lhs / self.value
+
+    def __abs__( self ):
+        return abs( self.value )

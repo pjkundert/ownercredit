@@ -23,54 +23,25 @@ from misc import *
 # average, weighted by the current value and the elapsed time.
 # 
             
-class averaged:
+class averaged( value ):
     """
     Acts like an integer or float, but returns a simple average of values over a time period.
     Samples with identical value/timestamp are ignored.  Using no timestamp (or None) causes the
     class to use the current real time.  Values persist indefinitely 'til replaced by new value(s)
     that are within the time interval window.
     """
-    __slots__			= [ 'interval', 'value', 'history' ]
+    __slots__			= [ 'interval', 'history' ]
     def __init__( self,
                   interval,
-                  value		= 0,
+                  val		= 0,
                   now		= None ):
+        value.__init__( self, val )
+
         if now is None:
             now			= time.time()
 
         self.interval		= interval
-        self.value		= value
-        self.history		= [ ( value, now ) ]
-
-    def __str__( self ):
-        return str( self.value )
-    def __int__( self ):
-        return int( self.value )
-    def __float__( self ):
-        return float( self.value )
-        
-    def __sub__( self, rhs ):
-        return self.value - rhs
-    def __rsub__( self, lhs ):
-        return lhs - self.value
-
-    def __add__( self, rhs ):
-        return self.value + rhs
-    def __radd__( self, lhs ):
-        return lhs + self.value
-
-    def __mul__( self, rhs ):
-        return self.value * rhs
-    def __rmul__( self, lhs ):
-        return lhs * self.value
-
-    def __div__( self, rhs ):
-        return self.value / rhs
-    def __rdiv__( self, lhs ):
-        return lhs / self.value
-
-    def __abs__( self ):
-        return abs( self.value )
+        self.history		= [ ( val, now ) ]
 
 
     def purge( self, now ):

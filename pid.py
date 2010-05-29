@@ -28,41 +28,40 @@ import filtered
 from misc import *
 
 # 
-# pid.controller -- Collect input/setpoint error and adjust output to compensate
+# pid.controller-- Collect error and adjust output to compensate
 # 
 #     Implements a PID control loop, but acts like a simple integer or float value
 # in most use cases.  Automatically damps Integral term to avoid "wind-up", if output
 # is saturated.
 # 
 # 
-class controller:
+class controller( value ):
     """
-    Modulates output based on error between current value and desired setpoint.
+    Modulates output based on proportional error between current process value and desired setpoint.
     """
     def __init__( self,
                   Kpid 		= ( 1.0, 1.0, 1.0 ),			# PID loop constants
                   setpoint	= 0.,					# Initial setpoint
-                  value		= 0.,					#   process value
+                  process	= 0.,					#   process value
                   output	= 0.,					#   and output
                   now		= None ):
         """
-        Given the initial PID loop constants Kpid, setpoint, input and target output, computes the
-        appropriate instantaneous I (Integral) to yield the target output, given the current
-        steady-state Proportion (error).  This means that, so long as the Proportion (error) term
-        (setpoint - input) doesn't change over time, the output value won't change on each loop.
-        This allows us to enter a process already under way with a steady state PID control loop.
+        Given the initial PID loop constants Kpid, and setpoint, process and target output values,
+        computes the appropriate instantaneous P (Proportion) and I (Integral) to yield the target
+        output.  This means that we will get a smooth output value as we begin controlling, by
+        avoiding a large instantaneous D (rate of change of the error term) on startup.  This allows
+        us to enter a process already under way with a steady state PID control loop.
         """
         self.Kp,self.Ki,self.Kd	= Kpid
         if now is None:
             now			= time.time()
 
         self.now		= now					# Last time computed
-        self.P			= setpoint - value			#   with this error term
+        self.P			= setpoint - process			#   with this error proportion term
 	self.I			= 0.					#   and integral of error over time
-        self.out		= output
         
         # Now, compute the required Integral to yield the desired initial steady-state output.  We
-        # assume a steady-state error (P), and hence a 0 Derivative (Kd) term, so:
+        # have no proportion error (P) history, and hence assume a 0 Derivative (Kd) term, so:
         # 
         #     output = P * Kp + I * Ki + D * Kd
         #     output = P * Kp + I * Ki + 0 * Kd
@@ -72,12 +71,14 @@ class controller:
         #     --------------- = I
         #           Ki
         if self.Ki:
-            self.I		= ( self.out - self.P * self.Kp ) / self.Ki
+            self.I		= ( output - self.P * self.Kp ) / self.Ki
+
+        self.value		= output
 
 
     def loop( self,
               setpoint,							# Current setpoint
-              value,							# Current process value
+              process,							# Current process value
 	      Lout		= ( math.nan, math.nan ),		# Output limiting (eg. output saturated)
               now 		= None ):
         """
@@ -90,67 +91,36 @@ class controller:
             now			= time.time()
         dt			= now - self.now
         if dt > 0:
-            # New input, setpoint and error term only contribute if time has elapsed!
+            # New process, setpoint and error term only contribute if time has elapsed!
             self.now		= now
-            P			= setpoint - value			# Proportional: error between setpoint and value 
+            P			= setpoint - process			# Proportional: error between setpoint and process value
             I			= self.I + P * dt			# Integral:     total error over time
             D			= ( P - self.P ) / dt			# Derivative:   instantanous rate of change of error
-            self.P		= P
+            self.P		= P					#               (must remember for D computation over time)
 
             # Compute tentative Output value, clamp Output to saturation limits, and perform
             # Integral anti-windup computation -- only remembering new Integral if output value not
             # clamped (or if new Integral would reduce Output clamping)!  Remember, any comparison
             # against math.nan is False.
-            out			= (   P * self.Kp
+            output		= (   P * self.Kp
                                     + I * self.Ki
                                     + D * self.Kd )
-            if out < Lout[0]:
+            if output < Lout[0]:
                 # Clamp output on low end, only remember increasing Integral
-                self.out	= Lout[0]
+                self.value	= Lout[0]
                 if I > self.I:
                     self.I	= I
-            elif out > Lout[1]:
+            elif output > Lout[1]:
                 # Clamp output on high end, only remember decreasing Integral
-                self.out	= Lout[1]
+                self.value	= Lout[1]
                 if I < self.I:
                     self.I	= I
             else:
                 # No clamping; use output and Integral as-is
-                self.out	= out
+                self.value	= output
                 self.I		= I
 
-        return self.out
-
-    # Supply the basic behaviours of an integer or float value.
-    def __str__( self ):
-        return str( self.out )
-    def __int__( self ):
-        return int( self.out )
-    def __float__( self ):
-        return float( self.out )
-        
-    def __sub__( self, rhs ):
-        return self.out - rhs
-    def __rsub__( self, lhs ):
-        return lhs - self.out
-
-    def __add__( self, rhs ):
-        return self.out + rhs
-    def __radd__( self, lhs ):
-        return lhs + self.out
-
-    def __mul__( self, rhs ):
-        return self.out * rhs
-    def __rmul__( self, lhs ):
-        return lhs * self.out
-
-    def __div__( self, rhs ):
-        return self.out / rhs
-    def __rdiv__( self, lhs ):
-        return lhs / self.out
-
-    def __abs__( self ):
-        return abs( self.out )
+        return self.value
 
 
 # 

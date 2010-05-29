@@ -34,6 +34,7 @@ def test_pid_pid():
     assert near( control.loop( 1.0, 1.0, now =13. ),  -0.4100 )
     assert near( control.loop( 1.0, 1.0, now =14. ),  -0.4100 )
 
+
 # pid.controller -- Same test
 def test_pid_controller():
     control		= pid.controller( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
@@ -59,7 +60,7 @@ def test_pid_controller_steady():
     control		= pid.controller(
         			Kpid 	= ( 2.0, 1.0, 2.0 ),
                                 setpoint=  1.0,
-                                value	=  2.0,
+                                process	=  2.0,
                                 output	=  5.0,
                                 now	=  0. )
 
@@ -94,11 +95,49 @@ def test_pid_controller_steady():
     assert near( control.loop( 1.0, 1.1, now = 4. ),   6.0720 )
     assert near( control.loop( 1.0, 1.1, now = 5. ),   5.9720 )
     assert near( control.loop( 1.0, 1.05,now = 6. ),   6.1220 )
-    assert near( control.loop( 1.0, 1.05,now = 7. ),   4.5000 )
-    assert near( control.loop( 1.0, 1.01,now = 8. ),  -0.3500 )
-    assert near( control.loop( 1.0, 1.0, now = 9. ),  -0.3900 )
-    assert near( control.loop( 1.0, 1.0, now =10. ),  -0.4100 )
-    assert near( control.loop( 1.0, 1.0, now =11. ),  -0.4100 )
-    assert near( control.loop( 1.0, 1.0, now =12. ),  -0.4100 )
-    assert near( control.loop( 1.0, 1.0, now =13. ),  -0.4100 )
-    assert near( control.loop( 1.0, 1.0, now =14. ),  -0.4100 )
+    assert near( control.loop( 1.0, 1.05,now = 7. ),   5.9720 )
+    assert near( control.loop( 1.0, 1.01,now = 8. ),   6.1220 )
+    assert near( control.loop( 1.0, 1.0, now = 9. ),   6.0820 )
+    assert near( control.loop( 1.0, 1.0, now =10. ),   6.0620 )
+    assert near( control.loop( 1.0, 1.0, now =11. ),   6.0620 )
+    assert near( control.loop( 1.0, 1.0, now =12. ),   6.0620 )
+    assert near( control.loop( 1.0, 1.0, now =13. ),   6.0620 )
+    assert near( control.loop( 1.0, 1.0, now =14. ),   6.0620 )
+
+
+# pid.controller -- Initial integral computation
+def test_pid_controller_integral():
+    control		= pid.controller(
+        			Kpid 	= ( 2.0, 1.0, 2.0 ),
+                                setpoint=  1.0,
+                                process	=  1.0,
+                                output	= 10.0,
+                                now	=  0. )
+
+    assert near( control.Kp, 2.000 )
+    assert near( control.Ki, 1.000 )
+    assert near( control.Kd, 2.000 )
+    assert near( control.P,  0.000 )
+    assert near( control.I, 10.000 )
+
+    control		= pid.controller(
+        			Kpid 	= ( 2.0, 3.0, 1.0 ),
+                                setpoint=  1.0,
+                                process	=  1.0,
+                                output	= 10.0,
+                                now	=  0. )
+
+    assert near( control.Kp, 2.000 )
+    assert near( control.Ki, 3.000 )
+    assert near( control.Kd, 1.000 )
+    assert near( control.P,  0.000 )
+    assert near( control.I,  3.333 )
+
+    assert near( control.loop( 1.0, 1.00, now = 1.0),  10.000 )
+    assert near( control.loop( 1.0, 1.00, now = 2.0),  10.000 )
+    assert near( control.loop( 1.0, 1.20, now = 2.1),   7.540 )
+    assert near( control.loop( 1.0, 1.10, now = 2.2),  10.710 )
+    assert near( control.loop( 1.0, 0.99, now = 2.3),  11.033 )
+    assert near( control.loop( 1.0, 1.00, now = 2.4),   9.813 )
+    assert near( control.loop( 1.0, 1.00, now = 2.5),   9.913 )
+    assert near( control.loop( 1.0, 1.00, now = 2.6),   9.913 )

@@ -17,7 +17,7 @@ clean:
 	rm -rf /tmp/ownercredit-$(VERSION)
 
 test:
-	py.test --nocapture
+	py.test --iocapture=no
 
 ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
 	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
