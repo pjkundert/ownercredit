@@ -14,10 +14,10 @@ all:				ownercredit-$(VERSION).zip	\
 				ownercredit-$(VERSION).tgz	\
 				clean
 clean:
-	rm -rf /tmp/ownercredit-$(VERSION)
+	rm -rf /tmp/ownercredit-$(VERSION) *.pyc
 
 test:
-	py.test --iocapture=no
+	py.test --nocapture --nomagic
 
 ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
 	tar -C /tmp -czvf $@ ownercredit-$(VERSION)

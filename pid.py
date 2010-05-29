@@ -59,7 +59,8 @@ class controller( value ):
         self.now		= now					# Last time computed
         self.P			= setpoint - process			#   with this error proportion term
 	self.I			= 0.					#   and integral of error over time
-        
+        self.D			= 0.
+
         # Now, compute the required Integral to yield the desired initial steady-state output.  We
         # have no proportion error (P) history, and hence assume a 0 Derivative (Kd) term, so:
         # 
@@ -79,8 +80,8 @@ class controller( value ):
     def loop( self,
               setpoint,							# Current setpoint
               process,							# Current process value
-	      Lout		= ( math.nan, math.nan ),		# Output limiting (eg. output saturated)
-              now 		= None ):
+              now 		= None,					# Time (default: now)
+	      Lout		= ( math.nan, math.nan ) ):		# Output limiting (eg. output saturated)
         """
         Compute the new output, based on the latest setpoint and process value.  Optionally perform
         output limiting and Integral anti-windup (if output is saturated).  We do output limiting
@@ -97,6 +98,7 @@ class controller( value ):
             I			= self.I + P * dt			# Integral:     total error over time
             D			= ( P - self.P ) / dt			# Derivative:   instantanous rate of change of error
             self.P		= P					#               (must remember for D computation over time)
+            self.D		= D					# (not necessary, but useful for monitoring)
 
             # Compute tentative Output value, clamp Output to saturation limits, and perform
             # Integral anti-windup computation -- only remembering new Integral if output value not
@@ -153,7 +155,7 @@ class pid:
         if now is None:
             now			= time.time()
 
-	self.set		= filtered.filter( Fset, now )			# Optionally time-weighted filtering w/ non-NaN initial values
+	self.set		= filtered.filter( Fset, now )		# Optionally time-weighted filtering w/ non-NaN initial values
         self.inp		= filtered.filter( Finp, now )
         self.out		= 0.					# Raw output, before clamping to Lout
         
@@ -195,14 +197,14 @@ class pid:
                                     + self.D * self.Kpid[2] )
         return clamp( self.out, self.Lout )
 
-def message( window, text, row = 23 ):
-    window.move( row, 0 )
+def message( window, text, row = 23, col = 0 ):
+    window.move( row, col )
     window.clrtoeol()
-    window.addstr( row, 5, text )
+    window.addstr( row, col, text )
 
 
 def ui( win, title = "Test" ):
-    # Run a little rocket up to 25m, and then station-keep
+    # Run a little rocket up to 25m, and then station-keep.  Use both styles of PID loop controller.
 
     rows, cols			= win.getmaxyx()
 
@@ -238,13 +240,26 @@ def ui( win, title = "Test" ):
     Finp			= ( 0.0, math.nan )			#   or input?
 
     now				= 0.0
-    autopilot			= pid( Kpid, Fset, Finp, Li, Lout, now )
-    #autopilot.I			= - g / Kpid[1]				# Pre-load integral for static balanced thrust
-    start			= autopilot.now
+    start			= now
+
+    # Get one of each style of pid loop: pid.pid, and pid.controller
+    autopilot			= pid( Kpid, Fset, Finp, Li, Lout, start )
+    autopilot.I			= - g / Kpid[1]				# Pre-load integral for static balanced thrust
+
+
+    aC				= 0.
+    vC				= 0.
+    yC				= platform
+    tC				= 0.
+    autocntrl			= controller( Kpid,
+                                              setpoint	= goal,
+                                              process	= platform,
+                                              output	= thrust,
+                                              now	= start )
 
     last			= time.time()
     while 1:
-        message( win, "Quit [qy/n]?, Timewarp:% 7.2f [W/w], Increment:% 7.2f, Filter setp.:% 7.2f[S/s], value:% 7.2f[V/v]"
+        message( win, "Quit [qy/n]?, Warp:% 7.2f [W/w], Incr:% 7.2f, Filt. Setpoint:% 7.2f[S/s], Value:% 7.2f[V/v]"
                  % ( timewarp, increment, autopilot.set.interval, autopilot.inp.interval ),
                  row = 0 )
         win.refresh()
@@ -288,20 +303,26 @@ def ui( win, title = "Test" ):
             # Adjust Kp
             if chr( input) == 'P':
                 autopilot.Kpid	= ( autopilot.Kpid[0] + .1, autopilot.Kpid[1], autopilot.Kpid[2] )
+                autocntrl.Kp  += .1
             if chr( input) == 'p':
                 autopilot.Kpid	= ( autopilot.Kpid[0] - .1, autopilot.Kpid[1], autopilot.Kpid[2] )
+                autocntrl.Kp  -= .1
 
             # Adjust Ki
             if chr( input) == 'I':
                 autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1] + .1, autopilot.Kpid[2] )
+                autocntrl.Ki  += .1
             if chr( input) == 'i':
                 autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1] - .1, autopilot.Kpid[2] )
+                autocntrl.Ki  -= .1
 
             # Adjust Kd
             if chr( input) == 'D':
                 autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1], autopilot.Kpid[2] + .1 )
+                autocntrl.Kd  += .1
             if chr( input) == 'd':
                 autopilot.Kpid	= ( autopilot.Kpid[0], autopilot.Kpid[1], autopilot.Kpid[2] - .1 )
+                autocntrl.Kd  -= .1
 
             # Adjust Mass
             if chr( input) == 'M':
@@ -309,16 +330,23 @@ def ui( win, title = "Test" ):
             if chr( input) == 'm':
                 mass	       -= .1
 
-        
+        # Next frame of animation
+        win.clear()
             
         dt			= now - autopilot.now			# last computed
+
+        #############################################################################
+        # pid.pid
+        # 
+        # v0, a0 and y0 and thrust are memory between runs; remainder of vars are temporaries
+        # 
 
         # Compute current altitude 'y', based on elapsed time 'dt' Compute acceleration f = ma,
         # a=f/m, including g.
         a			= g + thrust / mass
+        dv			= a * dt
 
         # Compute ending velocity v = v0 + at
-        dv			= a * dt
         v			= v0 + dv
         v_ave			= ( v0 + v ) / 2.
 
@@ -336,10 +364,8 @@ def ui( win, title = "Test" ):
         v_act			= ( v_ave_act - v0 ) * 2.
         a_act			= ( v_act - v0 ) / dt
 
-        # Frame of animation
-        win.clear()
         message( win,
-                 "T%+7.2f: ([P/p]: % 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: %8.4f/% 8.4f)"
+                 "T%+7.2f: ([P/p]: % 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: % 8.4f/% 8.4f)"
                    % ( now - start,
                        autopilot.Kpid[0],
                        autopilot.Kpid[1],
@@ -364,34 +390,116 @@ def ui( win, title = "Test" ):
                  % ( y, autopilot.err, goal, autopilot.set.get() ),
                  row = 5 )
 
+        # Remember ending acceleration, velocity and altitude for next 
         # a0			= a_act
         a0			= a
         # v0			= v_act
         v0			= v
         y0			= y
         
-        # Compute new thrust output for next time period based on current actual
-        # altitude, and new goal setpoint.  
-
+        # Compute new thrust output for next time period based on current actual altitude, and new
+        # goal setpoint.  This thrust will apply for the duration of the next time period.
         thrust			= autopilot.loop( goal, y0, now )
 
-        c			= rows - goal
-        fc			= rows - autopilot.set.get()
+        # Draw rocket at newly computed altitude
+        rg			= rows - goal
+        fs			= rows - autopilot.set.get()
         fi			= rows - autopilot.inp.get()
-        r			= rows - y0
+        ry			= rows - y0
+        rx			= 1 * cols / 3
 
-	if int(  c ) >= 0 and int(  c ) < rows:
-            win.addstr( int( c )     , cols / 2-7, 'goal->' )
-	if int( fc ) >= 0 and int( fc ) < rows:
-            win.addstr( int( fc )    , cols / 2+1, '<-set' )
-	if int( fi ) >= 0 and int( fi ) < rows:
-            win.addstr( int( fi )    , cols / 2+1, '<-inp' )
-	if int(  r)  >= 2 and int(  r ) < rows + 2:
-	    win.addstr( int( r ) - 2 , cols / 2,   '^' ) # rocket
-	if int(  r)  >= 1 and int(  r ) < rows + 1:
-	    win.addstr( int( r ) - 1 , cols / 2,   '|' )
-	if int(  r)  >= 0 and int(  r ) < rows:
-	    win.addstr( int( r )     , cols / 2,   ";'`^!."[ int( now * 97 ) % 6 ] )
+        rocket( win, now, rows, rx, ry, rg, fs, fi )
+
+
+        #############################################################################
+        # pid.controller
+        # 
+        # vC, aC and yC and tC are memory between runs; remainder of vars are temporaries
+        # 
+
+        # Compute current altitude 'y', based on elapsed time 'dt' Compute acceleration f = ma,
+        # a=f/m, including g.
+        a			= g + tC / mass
+        dv			= a * dt
+
+        # Compute ending velocity v = v0 + at
+        v			= vC + dv
+        v_ave			= ( vC + v ) / 2.
+
+        # Clamp y to launch pad, and eliminate -'ve velocity at pad
+        dy			= v_ave * dt
+        y			= clamp( yC + dy, Ly )
+        if v < 0 and near( y, Ly[0]):
+            v			= 0.
+
+        message( win,
+                 "([P/p]: % 8.4f/% 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: %8.4f/% 8.4f)"
+                   % ( autocntrl.Kp,
+                       autocntrl.P,
+                       autocntrl.Ki,
+                       autocntrl.I,
+                       autocntrl.Kd,
+                       autocntrl.D ),
+                 col = cols / 2,
+                 row = 1 )
+        message( win,
+                 "  f: % 7.2fkg.m/s^2, mass % 7.2fkg [M/m]"
+                 % ( tC, mass ),
+                 col = cols / 2,
+                 row = 2 )
+        message( win,
+                 "  a: % 7.2fm/s^2"
+                 % ( a ), 
+                 col = cols / 2,
+                 row = 3 )
+        message( win,
+                 "  v: % 7.2fm/s"
+                 % ( v ),
+                 col = cols / 2,
+                 row = 4 )
+        message( win,
+                 "  Y: % 7.2fm        (err:% 7.2f, goal:% 7.2f [k/j])"
+                 % ( y, autocntrl.P, goal ),
+                 col = cols / 2,
+                 row = 5 )
+
+        # Remember ending acceleration, velocity and altitude for next round
+        aC			= a
+        vC			= v
+        yC			= y
+        
+        # Compute new thrust output for next time period based on current actual altitude, and new
+        # goal setpoint.  This thrust will apply for the duration of the next time period.
+        tC			= autocntrl.loop( goal, yC, now, Lout )
+
+        # Draw rocket at newly computed altitude
+        rg			= rows - goal
+        fs			= rows - goal	# (filtered)
+        fi			= rows - yC	# (filtered)
+        ry			= rows - yC
+        rx			= 2 * cols / 3
+
+        rocket( win, now, rows, rx, ry, rg, fs, fi )
+
+
+# 
+# rocket	-- Draw a rocket at given x and y (if valid).
+# 
+#     Also draw in raw goal, and filtered setpoint and input values.
+# 
+def rocket( win, now, rows, x, y, rg, fs, fi ):
+    if int( rg ) >= 0 and int( rg ) < rows:
+        win.addstr( int( rg )     , int( x ) - 7, 'goal->' )
+    if int( fs ) >= 0 and int( fs ) < rows:
+        win.addstr( int( fs )    , int( x ) + 1, '<-set' )
+    if int( fi ) >= 0 and int( fi ) < rows:
+        win.addstr( int( fi )    , int( x ) + 1, '<-inp' )
+    if int(  y)  >= 2 and int(  y ) < rows + 2:
+        win.addstr( int( y ) - 2 , int( x ),   '^' ) # rocket
+    if int(  y)  >= 1 and int(  y ) < rows + 1:
+        win.addstr( int( y ) - 1 , int( x ),   '|' )
+    if int(  y)  >= 0 and int(  y ) < rows:
+	win.addstr( int( y )     , int( x ),   ";'`^!.,"[ int( now * 97 ) % 7 ] )
 
 
 

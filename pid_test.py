@@ -15,7 +15,9 @@ __license__				= "GNU General Public License, Version 3 (or later)"
 import pid
 from misc import *
 
+# 
 # pid.pid	-- Basic test, no filtering.
+# 
 def test_pid_pid():
     control		= pid.pid( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
 
@@ -35,7 +37,9 @@ def test_pid_pid():
     assert near( control.loop( 1.0, 1.0, now =14. ),  -0.4100 )
 
 
+# 
 # pid.controller -- Same test
+# 
 def test_pid_controller():
     control		= pid.controller( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
 
@@ -54,8 +58,9 @@ def test_pid_controller():
     assert near( control.loop( 1.0, 1.0, now =13. ),  -0.4100 )
     assert near( control.loop( 1.0, 1.0, now =14. ),  -0.4100 )
 
-
+# 
 # pid.controller -- Steady state
+# 
 def test_pid_controller_steady():
     control		= pid.controller(
         			Kpid 	= ( 2.0, 1.0, 2.0 ),
@@ -105,7 +110,9 @@ def test_pid_controller_steady():
     assert near( control.loop( 1.0, 1.0, now =14. ),   6.0620 )
 
 
+# 
 # pid.controller -- Initial integral computation
+# 
 def test_pid_controller_integral():
     control		= pid.controller(
         			Kpid 	= ( 2.0, 1.0, 2.0 ),
@@ -141,3 +148,70 @@ def test_pid_controller_integral():
     assert near( control.loop( 1.0, 1.00, now = 2.4),   9.813 )
     assert near( control.loop( 1.0, 1.00, now = 2.5),   9.913 )
     assert near( control.loop( 1.0, 1.00, now = 2.6),   9.913 )
+
+# 
+# pid.controller -- Output limiting and Integral wind-up avoidance
+# 
+#     When we hit the max output, the PID Integral should cease to be in/decreased.  If the PID loop
+# doesn't do this, it will "stick" to min/max output long after the setpoint/process error has been
+# decreased.  Once the Integral has maxed out, the only things that can continue to increase the
+# output is the Proportional and Derivative, but these are temporary; in fact, as the Derivative
+# (rate-of-change of error) goes in the opposite direction after the PID loop had previously hit the
+# output limit, then it will "over compensate" in the output term for the first loop.  If this turns
+# out to be a significant issue, then we'll have to limit both I and D terms when output is clamped
+# to limits.
+# 
+def test_pid_controller_integral():
+    control		= pid.controller(
+        			Kpid 	= ( 2.0, 3.0, 1.0 ),
+                                setpoint=  1.0,
+                                process	=  1.0,
+                                output	= 10.0,
+                                now	=  0. )
+
+    assert near( control.Kp, 2.000 )
+    assert near( control.Ki, 3.000 )
+    assert near( control.Kd, 1.000 )
+    assert near( control.P,  0.000 )
+    assert near( control.I,  3.333 )
+
+    assert near( control.P,  0.000 ); assert near( control.I,  3.3333 )
+    assert near( control.loop( 1.0, 1.00, now = 1.0, Lout=(0.0, 100.0)),  10.000 )
+    assert near( control.P,  0.000 ); assert near( control.I,  3.3333 )
+    assert near( control.loop( 1.0, 1.00, now = 2.0, Lout=(0.0, 100.0)),  10.000 )
+    assert near( control.P,  0.000 ); assert near( control.I,  3.3333 )
+    assert near( control.loop( 1.0, 1.20, now = 2.1, Lout=(0.0, 100.0)),   7.540 )
+    assert near( control.P, -0.200 ); assert near( control.I,  3.3133 )
+    assert near( control.loop( 1.0, 2.00, now = 3.0, Lout=(0.0, 100.0)),   4.351 )
+    assert near( control.P, -1.000 ); assert near( control.I,  2.4133 )
+    assert near( control.loop( 1.0, 1.90, now = 4.0, Lout=(0.0, 100.0)),   2.840 )
+    assert near( control.P, -0.900 ); assert near( control.I,  1.5133 )
+    assert near( control.loop( 1.0, 1.75, now = 5.0, Lout=(0.0, 100.0)),   0.940 )
+    assert near( control.P, -0.750 ); assert near( control.I,  0.7633 )
+    assert near( control.loop( 1.0, 1.50, now = 6.0, Lout=(0.0, 100.0)),   0.040 )
+    assert near( control.P, -0.500 ); assert near( control.I,  0.26333 )
+    assert near( control.loop( 1.0, 1.25, now = 7.0, Lout=(0.0, 100.0)),   0.000 ) # Clamped!
+    assert near( control.P, -0.250 ); assert near( control.I,  0.26333 )
+    assert near( control.loop( 1.0, 1.20, now = 7.2, Lout=(0.0, 100.0)),   0.520 )
+    assert near( control.P, -0.200 ); assert near( control.I,  0.22333 )
+    assert near( control.loop( 1.0, 1.20, now = 7.4, Lout=(0.0, 100.0)),   0.150 )
+    assert near( control.P, -0.200 ); assert near( control.I,  0.18333 )
+    assert near( control.loop( 1.0, 1.20, now = 7.6, Lout=(0.0, 100.0)),   0.030 )
+    assert near( control.P, -0.200 ); assert near( control.I,  0.14333 )
+    assert near( control.loop( 1.0, 1.20, now = 7.8, Lout=(0.0, 100.0)),   0.000 ) # Clamped!
+    assert near( control.P, -0.200 ); assert near( control.I,  0.14333 )
+    # Even increasing error doesn't change things (except P, of course)!
+    assert near( control.loop( 1.0, 1.25, now = 8.0, Lout=(0.0, 100.0)),   0.000 ) # Clamped!
+    assert near( control.P, -0.250 ); assert near( control.I,  0.14333 )
+    # ...but the changed P will result in a larger Derivative when error reduced...
+    assert near( control.loop( 1.0, 1.20, now = 8.2, Lout=(0.0, 100.0)),   0.160 )
+    assert near( control.P, -0.200 ); assert near( control.I,  0.10333 )
+    # Here's an example
+    assert near( control.loop( 1.0, 1.20, now = 8.4, Lout=(0.0, 100.0)),   0.000 ) # Clamped!
+    assert near( control.P, -0.200 ); assert near( control.I,  0.10333 )
+    assert near( control.loop( 1.0, 1.30, now = 8.6, Lout=(0.0, 100.0)),   0.000 ) # Clamped!
+    assert near( control.P, -0.300 ); assert near( control.I,  0.10333 )
+    # ...so the changed P resulted in a larger Derivative when error reduced...
+    assert near( control.loop( 1.0, 1.20, now = 8.8, Lout=(0.0, 100.0)),   0.290 ) # Clamped!
+    assert near( control.P, -0.200 ); assert near( control.I,  0.06333 )
+
