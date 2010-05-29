@@ -15,9 +15,9 @@ from misc import *
 
 
 # 
-# averaged	-- Simple average over total specified time period
-# weighted	-- Weighted average of individual sample/time periods
-# weighted_linear	--
+# averaged		-- Simple average over total specified time period
+# weighted		-- Weighted average of individual sample/time periods
+# weighted_linear	-- Simple linear weighted average of all samples within period
 # 
 #     Takes the current value and last average, and returns the new
 # average, weighted by the current value and the elapsed time.
@@ -287,10 +287,11 @@ class weighted_linear( averaged ):
 # 
 # SUMMARY
 # 
-#     Overall, too complex, and must be explicitly supported by the
-# target.  Use 'averaged' and derived classes, which act like integers
-# or floats (and can often be used as such), but implement similar
-# filtering features.
+# 
+#     Overall, too complex (mixes simple/time average), and must be
+# explicitly supported by the target.  Use 'averaged' and derived
+# classes, which act like integers or floats (and can often be used as
+# such), but implement similar filtering features.
 # 
 class filter:
     def __init__( self,
@@ -298,15 +299,19 @@ class filter:
                   now		= None ):
         if now is None:
             now			= time.time()
-        try:
-            self.interval	= interval[0]		# Changing will take effect after next 'add'
-            self.weighted	= interval[1]
+        try:						# Changing will take effect after next 'add'
+            self.interval	= interval[0]		# The filter window interval
+            self.weighted	= interval[1]		# Latest value to pass beyond time interval window
         except:
             self.interval	= interval
             self.weighted	= math.nan
+
         self.now		= now
 
         self.history		= [  ]
+        if not self.interval and not( isnan( self.weighted )):
+            # Zero timed weighting w/initial value; could be non-zero later, but make it work initially
+            self.history.insert( 0, ( self.weighted, self.now ))
         self.sum		= 0.
         
     def get( self ):
@@ -342,7 +347,7 @@ class filter:
         # Save new value
         self.history.insert( 0, ( value, now ) )
 
-        # Computer time-weighted or simple average of remaining values
+        # Compute time-weighted or simple average of remaining values
         self.sum		= 0.
         if isnan( self.weighted ):
             # Simple average

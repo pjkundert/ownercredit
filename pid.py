@@ -224,19 +224,24 @@ def ui( win, title = "Test" ):
     Lout			= (    0.0,    mass * 100.0   )
 
     #Li				= ( math.nan, math.nan )
-    Li				= (    0.0,   math.nan )
+    #Li				= (    0.0,   math.nan )
     #Li				= (    0.0,    100.0   ) 		# error integral limits; avoiding integral loading causes uncorrected error?
+    Li				= (    0.0,     50.0   ) 		# error integral limits; avoiding integral loading causes uncorrected error?
 
     #Ly				= ( math.nan, math.nan )		# Lauch pad height
     Ly				= ( platform, math.nan )		# Lauch pad height
 
+    # Initial process value is on platform (or halfway up?)
+    initial			= platform
+    #initial			= platform + ( goal - platform ) / 2
 
     a0				= 0.0
     v0				= 0.0
-    y0				= platform
+    y0				= initial
     thrust			= 0.0					# N (kg.m/s^2)
 
-    Fset			= ( 1.0, platform )			# Filter setpoint?
+    #Fset			= ( 1.0, platform )			# Filter setpoint?
+    Fset			= ( 0.0, initial )			# Filter setpoint?
     Finp			= ( 0.0, math.nan )			#   or input?
 
     now				= 0.0
@@ -249,11 +254,11 @@ def ui( win, title = "Test" ):
 
     aC				= 0.
     vC				= 0.
-    yC				= platform
+    yC				= initial
     tC				= 0.
     autocntrl			= controller( Kpid,
                                               setpoint	= goal,
-                                              process	= platform,
+                                              process	= initial,
                                               output	= thrust,
                                               now	= start )
 
@@ -365,9 +370,10 @@ def ui( win, title = "Test" ):
         a_act			= ( v_act - v0 ) / dt
 
         message( win,
-                 "T%+7.2f: ([P/p]: % 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: % 8.4f/% 8.4f)"
+                 "T%+7.2f: ([P/p]: % 8.4f % 6.4f [I/i]: % 8.4f/% 8.4f [D/d]: % 8.4f/% 8.4f)"
                    % ( now - start,
                        autopilot.Kpid[0],
+                       autopilot.err,
                        autopilot.Kpid[1],
                        autopilot.I,
                        autopilot.Kpid[2],

@@ -17,7 +17,7 @@ clean:
 	rm -rf /tmp/ownercredit-$(VERSION) *.pyc
 
 test:
-	py.test --nocapture --nomagic
+	py.test --nocapture
 
 ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
 	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
