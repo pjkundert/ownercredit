@@ -28,106 +28,129 @@ import filtered
 from misc import *
 
 # 
-# pid.controller-- Collect error and adjust output to compensate
+# pid.controller -- Collect input/setpoint error and adjust output to compensate
 # 
 #     Implements a PID control loop, but acts like a simple integer or float value
-# in most use cases.
+# in most use cases.  Automatically damps Integral term to avoid "wind-up", if output
+# is saturated.
+# 
 # 
 class controller:
     """
     Modulates output based on error between current value and desired setpoint.
-
     """
     def __init__( self,
                   Kpid 		= ( 1.0, 1.0, 1.0 ),			# PID loop constants
-                  Fset		= ( 0.0, math.nan ),			# Filter setpoint and/or input valus over simple averaged interval
-                  Finp		= ( 0.0, math.nan ),			#  or, (optionally) time-weighted w/ non-NaN initial value
-                  Li		= ( math.nan, math.nan ),		# Limit integral (anti-windup)
-                  Lout		= ( math.nan, math.nan ),		# Limit output (anti-saturation)
+                  setpoint	= 0.,					# Initial setpoint
+                  value		= 0.,					#   process value
+                  output	= 0.,					#   and output
                   now		= None ):
         """
         Given the initial PID loop constants Kpid, setpoint, input and target output, computes the
-        appropriate instantaneous I (Integral) and D (Derivative) to yield the target output.  This
-        means that, so long as the error term (setpoint - input) doesn't change, the output value
-        won't change.
-
-        If set of output limits are provided, then the Integral will automatically be limited
+        appropriate instantaneous I (Integral) to yield the target output, given the current
+        steady-state Proportion (error).  This means that, so long as the Proportion (error) term
+        (setpoint - input) doesn't change over time, the output value won't change on each loop.
+        This allows us to enter a process already under way with a steady state PID control loop.
         """
+        self.Kp,self.Ki,self.Kd	= Kpid
         if now is None:
             now			= time.time()
 
-	self.set		= filtered.filter( Fset, now )			# Optionally time-weighted filtering w/ non-NaN initial values
-        self.inp		= filtered.filter( Finp, now )
-        self.out		= 0.					# Raw output, before clamping to Lout
+        self.now		= now					# Last time computed
+        self.P			= setpoint - value			#   with this error term
+	self.I			= 0.					#   and integral of error over time
+        self.out		= output
         
-        self.Finp		= Finp
-        self.Fset		= Fset
-        self.Kpid		= Kpid
-        self.Li			= Li		# Integral anti-wind-up (eg. output saturated, doesn't reduce error term)
-        self.Lout		= Lout		# Output limiting (eg. output saturated)
+        # Now, compute the required Integral to yield the desired initial steady-state output.  We
+        # assume a steady-state error (P), and hence a 0 Derivative (Kd) term, so:
+        # 
+        #     output = P * Kp + I * Ki + D * Kd
+        #     output = P * Kp + I * Ki + 0 * Kd
+        #     output - P * Kp = I * Ki
+        # 
+        #     output - P * Kp 
+        #     --------------- = I
+        #           Ki
+        if self.Ki:
+            self.I		= ( self.out - self.P * self.Kp ) / self.Ki
 
-        self.now		= now		# Last time computed
-        self.err		= 0.		#   with this error term
-	self.I			= 0.		#   and integral of error over time
-        self.D			= 0.		# Remember for dt == 0. case...
-
-        self.err		= 0.		# Assume we are at setpoint
 
     def loop( self,
-              setpt,				# Current setpoint
-              value,				# Current value
+              setpoint,							# Current setpoint
+              value,							# Current process value
+	      Lout		= ( math.nan, math.nan ),		# Output limiting (eg. output saturated)
               now 		= None ):
+        """
+        Compute the new output, based on the latest setpoint and process value.  Optionally perform
+        output limiting and Integral anti-windup (if output is saturated).  We do output limiting
+        here (instead of remembering it in __init__), to allow for dynamic output limits that change
+        over time.
+        """
         if now is None:
             now			= time.time()
         dt			= now - self.now
         if dt > 0:
-            # New input, setpoint and error term only contribute if time has elapsed!  Get the
-            # filtered value.  Simple or time-weighted selected at construction.
-            inp			= self.inp.add( value, now )
-            sep			= self.set.add( setpt, now )
-            err			= sep - inp
-
-            # Avoid integral wind-up by clamping to range limits Li
-            self.I		= clamp( self.I + err * dt, self.Li )
-            self.D		= ( err - self.err ) / dt
-            self.err		= err
+            # New input, setpoint and error term only contribute if time has elapsed!
             self.now		= now
+            P			= setpoint - value			# Proportional: error between setpoint and value 
+            I			= self.I + P * dt			# Integral:     total error over time
+            D			= ( P - self.P ) / dt			# Derivative:   instantanous rate of change of error
+            self.P		= P
 
-            self.out		= (      err * self.Kpid[0]
-                                    + self.I * self.Kpid[1]
-                                    + self.D * self.Kpid[2] )
-        return clamp( self.out, self.Lout )
+            # Compute tentative Output value, clamp Output to saturation limits, and perform
+            # Integral anti-windup computation -- only remembering new Integral if output value not
+            # clamped (or if new Integral would reduce Output clamping)!  Remember, any comparison
+            # against math.nan is False.
+            out			= (   P * self.Kp
+                                    + I * self.Ki
+                                    + D * self.Kd )
+            if out < Lout[0]:
+                # Clamp output on low end, only remember increasing Integral
+                self.out	= Lout[0]
+                if I > self.I:
+                    self.I	= I
+            elif out > Lout[1]:
+                # Clamp output on high end, only remember decreasing Integral
+                self.out	= Lout[1]
+                if I < self.I:
+                    self.I	= I
+            else:
+                # No clamping; use output and Integral as-is
+                self.out	= out
+                self.I		= I
+
+        return self.out
 
     # Supply the basic behaviours of an integer or float value.
     def __str__( self ):
-        return str( self.value )
+        return str( self.out )
     def __int__( self ):
-        return int( self.value )
+        return int( self.out )
     def __float__( self ):
-        return float( self.value )
+        return float( self.out )
         
     def __sub__( self, rhs ):
-        return self.value - rhs
+        return self.out - rhs
     def __rsub__( self, lhs ):
-        return lhs - self.value
+        return lhs - self.out
 
     def __add__( self, rhs ):
-        return self.value + rhs
+        return self.out + rhs
     def __radd__( self, lhs ):
-        return lhs + self.value
+        return lhs + self.out
 
     def __mul__( self, rhs ):
-        return self.value * rhs
+        return self.out * rhs
     def __rmul__( self, lhs ):
-        return lhs * self.value
+        return lhs * self.out
 
     def __div__( self, rhs ):
-        return self.value / rhs
+        return self.out / rhs
     def __rdiv__( self, lhs ):
-        return lhs / self.value
+        return lhs / self.out
 
     def __abs__( self ):
-        return abs( self.value )
+        return abs( self.out )
 
 
 # 

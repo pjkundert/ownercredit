@@ -34,7 +34,8 @@ def near( a, b, significance = 1.0e-4 ):
 # 
 # clamp		-- Clamps a value to within a tuple of limits.
 # 
-#     Limits that are math.nan are automatically ignored, with no special code.
+#     Limits that are math.nan are automatically ignored, with no special code (comparisons
+# against NaN always return False).
 # 
 def clamp( val, lim ):
     """ Limit val to between 2 (optional, if nan) limits """
