@@ -25,7 +25,7 @@ isn't checked):
 
     commodities			= {
         # Commodity	 Units	 -of-	Quality	  -at-	Market
-        "beer":		( "355ml",	"Pilsener",	"7-11"	    ),
+        "beer":		( "355ml",	"Pilsner",	"7-11"	    ),
         "gas":		( "l",		"Unleaded"	"Exxon"	    ),
         "bullets":	( "30.06",	"Springfield",	"Walmart"   ),
         }
