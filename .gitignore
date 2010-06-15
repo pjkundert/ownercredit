@@ -1,0 +1,4 @@
+*.pyc
+*~
+httpserver.log
+httpserver.pid

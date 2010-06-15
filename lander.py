@@ -9,11 +9,12 @@ __license__			= "GNU General Public License V3 (or higher)"
 import time
 from misc import *
 import pid
+import random
 
 # message
 #
-#     Clip message to available display area
-
+#     Clip message to available display area.  (0,0) is transformed to the lower-left.
+# 
 def message( window, text, row = 0, col = 0 ):
     rows, cols			= window.getmaxyx()
 
@@ -84,7 +85,7 @@ class lander ( object ):
         self.rot		= 0.    # radians; -'ve == left lean, +'ve right lean
         self.rot_lim		= ( -math.pi*30/180, math.pi*30/180 )
         self.thrust		= 0		# kg m/s^2
-        self.engine		= ( 0, 2500 )	# kg m/s^2 range
+        self.engine		= ( 0, 3000 )	# kg m/s^2 range
         self.fuel		= 250.  	# kg
         self.fuel_energy	= 500.  	# kg m/s^2 per kg
         self.mass		= 1000. 	# kg
@@ -137,10 +138,20 @@ def ui( win, title = "Test" ):
     angle			= 0.  # (-1,+1)
     g				= 9.8 / 6
 
+    # Generate some tarrain at various X positions.  -'ve (leftward) ground is simply inverse of +'ve
+    elevation			= ( 3, 10 )	# min/max elevation (avg. is beginning)
+    ground			= {}
+    ground[0]			= elevation[0] + ( elevation[1] - elevation[0] ) / 2
+    for x in range( 1, 1000 ):
+        ground[x]		= clamp( ground[x-1] + random.randint( -1, 1 ), elevation )
+        ground[-x]		= scale( ground[x], elevation, ( elevation[1], elevation[0] ))
+
     autopilot			= True
-    # Kpid			= (    5.0,      1.0,     2.0   )	# PID loop tuning
-    #Kpid			= (  10.0,   0.0001, 10000.0   )	# PID
-    Kpid			= (   2.9,       1.4,    29.0   )	# PID
+
+    # PID loop tuning
+    #Kpid			= (   5.0,       1.0,        2.0   )
+    #Kpid			= (  10.0,       0.0001, 10000.0   )
+    Kpid			= (   3.0,       0.1,      100.0   )
     Lout			= ( 0., 1. )
 
     autocntrl			= pid.controller( Kpid,
@@ -159,6 +170,15 @@ def ui( win, title = "Test" ):
 
     escaped			= False
     while 1:
+        # Draw the ground
+        for c in range ( 0, cols - 1 ):
+            if ( ground[c+1] > ground[c] ):
+                message( win, '/',  col = c, row = ground[c] )
+            elif ( ground[c+1] < ground[c] ):
+                message( win, '\\', col = c, row = ground[c] - 1 )
+            else:
+                message( win, '_',  col = c, row = ground[c] )
+            
         win.refresh()
 
         input			= win.getch()
@@ -250,8 +270,8 @@ def ui( win, title = "Test" ):
 
         if autopilot:
             # Autopilot enabled; set next period's throttle position
-            # based on this period's resultant position vs. goal.
-            throttle		= autocntrl.loop( 0., lndr.p[1] / rows, now, Lout )
+            # based on this period's resultant position vs. ground
+            throttle		= autocntrl.loop( ground[lndr.p[0]] / float( rows ), lndr.p[1] / float( rows ), now, Lout )
 
 
 if __name__=='__main__':
