@@ -33,7 +33,7 @@ def test_money_create_1():
     commodities			= {
         # Commodity	 Units	 -of-	Quality	  -at-	Market
         "gas":		( "l",		"Unleaded"	"Exxon"	    ),
-        "beer":		( "355ml",	"Pilsener",	"7-11"	    ),
+        "beer":		( "355ml",	"Pilsner",	"7-11"	    ),
         "bullets":	( "9mm",	"Springfield",	"Walmart"   ),
         }
 

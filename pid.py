@@ -17,7 +17,7 @@ error component should be fed back into computing the output.
 to be tuned.
 """
 
-__author__ 			= "Perry Kundert (perry.kundert@enbridge.com)"
+__author__ 			= "Perry Kundert (perry@kundert.ca)"
 __version__ 			= "$Revision: 1.2 $"
 __date__ 			= "$Date: 2006/05/10 16:51:11 $"
 __copyright__			= "Copyright (c) 2008 Perry Kundert"
