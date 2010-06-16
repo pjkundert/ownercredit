@@ -7,9 +7,14 @@ __copyright__			= "Copyright (c) 2008 Perry Kundert"
 __license__			= "GNU General Public License V3 (or higher)"
 
 import time
-from misc import *
-import pid
 import random
+import math
+
+# Local modules
+import misc
+import filtered
+import pid
+
 
 # message
 #
@@ -68,15 +73,20 @@ class object:
 
 # lander
 # 
-#     Animate lunar lander in a gravity field.
+#     Animate lunar lander in a gravity field, with 3 scales
 # 
-#         
-#    .........
-#    \ -24'  /
+# Scale:
+#   x16 +          x4              x1
+#                               .........
+#               .........       \ -24'  /
+#  .........    \ -24'  /          _o_
+#  \ -24'  /                     +/< >\+
+#                  /^\            \ @ /O
+#                 |XAX|          / / \ \
+#      A          / M \        _/  ( )  \_ 
+#      '            V               v
 # 
-#       /^\
-#      |XAX|
-#      / v \
+#
 #
 class lander ( object ):
     def __init__( self, p, v, g, now = None ):
@@ -91,10 +101,10 @@ class lander ( object ):
         self.mass		= 1000. 	# kg
 
     def throttle( self, proportion ):
-        self.thrust		= int( scale( proportion, ( 0., 1. ), self.engine ))
+        self.thrust		= int( misc.scale( proportion, ( 0., 1. ), self.engine ))
 
     def roll( self, proportion ):
-        self.rot		= scale( proportion, ( -1., 1. ), self.rot_lim )
+        self.rot		= misc.scale( proportion, ( -1., 1. ), self.rot_lim )
 
     def move( self, now = None ):
         if now is None:
@@ -111,17 +121,56 @@ class lander ( object ):
 
         object.move( self, now )
 
-    def draw( self, window ):
+    def draw( self, window, scale = 1 ):
         message( window, 'Fuel: %5.2f, Thrust: %5.2f, Acc: %5.2f' % ( self.fuel, self.thrust, self.a[1] ), col = 1, row = 1 )
 
-        eighths			= int( scale( self.rot, self.rot_lim, ( 0, 8.999 )))
-        dot 			= ' ' * ( 8 - eighths ) + '.'
+        thr_mag			= int( misc.scale( self.thrust, self.engine, ( 1.0, 10.99 )))
+        height			= 0
 
-        message( window,  dot, col = self.p[0] - 4, row = self.p[1] + 5 )
-        message( window,  '\\  % +2d\'  /' % int( self.rot * 180 / math.pi ), col = self.p[0] - 4, row = self.p[1] + 4 )
-        message( window,  '/^\\', col = self.p[0] - 1, row = self.p[1] + 2 )
-        message( window, '|XAX|', col = self.p[0] - 2, row = self.p[1] + 1 )
-        message( window, '/ ' + ' vvvVVVVVV'[int( self.now * 1000000 ) % scale( int( self.thrust ), self.engine, ( 1, 9 ))] + ' \\', col = self.p[0] - 2, row = self.p[1] + 0 )
+        if ( scale >= 16 ):
+            height		= 1
+            message( window,  'A',
+                     col = self.p[0]    , row = self.p[1] + 0 )
+            message( window,  " '''!!!!!|"[int( self.now * 1000000 ) % thr_mag],
+                     col = self.p[0]    , row = self.p[1] - 1 )
+
+        elif ( scale > 1 ):
+            height		= 3
+            message( window,  '/^\\',
+                     col = self.p[0] - 1, row = self.p[1] + 2 )
+            message( window, '|XAX|',
+                     col = self.p[0] - 2, row = self.p[1] + 1 )
+            message( window, '/ ^ \\',
+                     col = self.p[0] - 2, row = self.p[1] + 0 )
+            message( window, ' vvvVVVVVW'[int( self.now * 1000000 ) % thr_mag],
+                     col = self.p[0]    , row = self.p[1] - 1 )
+        else:
+            height		= 5
+            thr_char		= ' \'vvvVVVVW'[int( self.now * 1000000 ) % thr_mag]
+
+            message( window,    '_o_',
+                     col = self.p[0] - 1, row = self.p[1] + 4 )
+            message( window,  '+/< >\\+',
+                     col = self.p[0] - 3, row = self.p[1] + 3 )
+            message( window,   '\\ @ /O',
+                     col = self.p[0] - 2, row = self.p[1] + 2 )
+            message( window,   '/ / \\ \\',
+                     col = self.p[0] - 3, row = self.p[1] + 1 )
+            if thr_mag > 5:
+                message( window, '_/  ( )  \\_',
+                         col = self.p[0] - 5, row = self.p[1] + 0 )
+                message( window, thr_char,
+                         col = self.p[0]    , row = self.p[1] - 1 )
+            else:
+                message( window, '_/   ' + thr_char + '   \\_',
+                         col = self.p[0] - 5, row = self.p[1] + 0 )
+
+        eighths			= int( misc.scale( self.rot, self.rot_lim, ( 0.0, 8.999 )))
+        dot 			= ' ' * ( 8 - eighths ) + '.'
+        message( window,  dot, col = self.p[0] - 4, row = self.p[1] + height + 2 )
+        message( window,  '\\  %- 3d\' /' % int( self.rot * 180 / math.pi ), col = self.p[0] - 4, row = self.p[1] + height + 1 )
+
+
 
     
 
@@ -132,6 +181,8 @@ def ui( win, title = "Test" ):
 
     lastchar			= ' '
 
+    X				= 0	# Indices for (x,y) tuples
+    Y				= 1
     now				= time.time()
     pos				= ( cols/2, rows/2 )
     throttle			= 0.  # ( 0, 1)
@@ -139,12 +190,12 @@ def ui( win, title = "Test" ):
     g				= 9.8 / 6
 
     # Generate some tarrain at various X positions.  -'ve (leftward) ground is simply inverse of +'ve
-    elevation			= ( 3, 10 )	# min/max elevation (avg. is beginning)
+    elevation			= ( 4, 10 )	# min/max elevation (avg. is beginning)
     ground			= {}
     ground[0]			= elevation[0] + ( elevation[1] - elevation[0] ) / 2
     for x in range( 1, 1000 ):
-        ground[x]		= clamp( ground[x-1] + random.randint( -1, 1 ), elevation )
-        ground[-x]		= scale( ground[x], elevation, ( elevation[1], elevation[0] ))
+        ground[x]		= misc.clamp( ground[x-1] + random.randint( -1, 1 ), elevation )
+        ground[-x]		= misc.scale( ground[x], elevation, ( elevation[1], elevation[0] ))
 
     autopilot			= True
 
@@ -161,24 +212,16 @@ def ui( win, title = "Test" ):
                                                   now		= now )
 
 
-    ol				= [ ]
+    othr			= [ ]
     lndr			= lander( pos, ( 0., 0. ), g, now = now )
-    ol.append( lndr )
 
     for i in range( 0, 10 ):
-        ol.append( object( ( 10., 0. ), ( 5. + i -  5, 25. + i - 5 ), ( 0., -9.8 ), now = now ) )
+        othr.append( object( ( 10., 0. ), ( 5. + i -  5, 25. + i - 5 ), ( 0., -9.8 ), now = now ) )
 
-    escaped			= False
+    # Average altitude is a time-weighted average over the last 1/2 second.
+    altitude			= filtered.weighted( 0.5, now = now )
+
     while 1:
-        # Draw the ground
-        for c in range ( 0, cols - 1 ):
-            if ( ground[c+1] > ground[c] ):
-                message( win, '/',  col = c, row = ground[c] )
-            elif ( ground[c+1] < ground[c] ):
-                message( win, '\\', col = c, row = ground[c] - 1 )
-            else:
-                message( win, '_',  col = c, row = ground[c] )
-            
         win.refresh()
 
         input			= win.getch()
@@ -207,33 +250,33 @@ def ui( win, title = "Test" ):
                 
             # Adjust Kp
             if input <= 255 and chr( input) == 'P':
-                    inc			= magnitude( autocntrl.Kp )
-                    autocntrl.Kp     += inc + inc / 100
-                    autocntrl.Kp     -= autocntrl.Kp % inc
+                inc		= misc.magnitude( autocntrl.Kp )
+                autocntrl.Kp   += inc + inc / 100
+                autocntrl.Kp   -= autocntrl.Kp % inc
             if input <= 255 and chr( input) == 'p':
-                    inc			= magnitude( autocntrl.Kp )
-                    autocntrl.Kp     -= inc - inc / 100
-                    autocntrl.Kp     -= autocntrl.Kp % inc
+                inc		= misc.magnitude( autocntrl.Kp )
+                autocntrl.Kp   -= inc - inc / 100
+                autocntrl.Kp   -= autocntrl.Kp % inc
 
             # Adjust Ki
             if input <= 255 and chr( input) == 'I':
-                    inc			= magnitude( autocntrl.Ki )
-                    autocntrl.Ki     += inc + inc / 100
-                    autocntrl.Ki     -= autocntrl.Ki % inc
+                inc		= misc.magnitude( autocntrl.Ki )
+                autocntrl.Ki   += inc + inc / 100
+                autocntrl.Ki   -= autocntrl.Ki % inc
             if input <= 255 and chr( input) == 'i':
-                    inc			= magnitude( autocntrl.Ki )
-                    autocntrl.Ki     -= inc - inc / 100
-                    autocntrl.Ki     -= autocntrl.Ki % inc
+                inc		= misc.magnitude( autocntrl.Ki )
+                autocntrl.Ki   -= inc - inc / 100
+                autocntrl.Ki   -= autocntrl.Ki % inc
 
             # Adjust Kd
             if input <= 255 and chr( input) == 'D':
-                    inc			= magnitude( autocntrl.Kd )
-                    autocntrl.Kd     += inc + inc / 100
-                    autocntrl.Kd     -= autocntrl.Kd % inc
+                inc		= misc.magnitude( autocntrl.Kd )
+                autocntrl.Kd   += inc + inc / 100
+                autocntrl.Kd   -= autocntrl.Kd % inc
             if input <= 255 and chr( input) == 'd':
-                    inc			= magnitude( autocntrl.Kd )
-                    autocntrl.Kd     -= inc - inc / 100
-                    autocntrl.Kd     -= autocntrl.Kd % inc
+                inc		= misc.magnitude( autocntrl.Kd )
+                autocntrl.Kd   -= inc - inc / 100
+                autocntrl.Kd   -= autocntrl.Kd % inc
 
 
         lndr.throttle( throttle )
@@ -246,32 +289,96 @@ def ui( win, title = "Test" ):
         now			= time.time()
         dt			= now - last
 
+        # 
+        # Compute the scale.  We'll assume that the character cells
+        # are ~ 1 unit wide x 2 tall:
+        # 
+        #   +---+---+---+---+
+        #   |   |   |   |   |
+        #   +---+---+---+---+
+        #   |   |   |   |   |
+        #   +---+---+---+---+
+        #   |   |   |   |   |
+        #   +---+---+---+---+
+        #   |   |   |   |   |
+        #   +---+---+---+---+
+        # 
+
+        #   There will be 3 scales:
+        # 
+        # 
+        #  1: x 1.0000: 16 cells wide / meter
+        #  4: x  .2500:  4 cells wide / meter
+        # 16: x  .0625:  1 cell  wide / meter
+
+        c_m			= {}
+        c_m[ 1]			= ( 16.,   8.   )
+        c_m[ 4]			= (  4.,   2.   )
+        c_m[16]			= (  1.,   .5   )
+        c_m[64]			= (  1./4, .5/4 )
+
+        # How far from the surface are we?  If more than 3/4 screen
+        # for the last second, zoom out (increase scale)
+        scale			= 1
+        scale_max		= 64
+        while scale < scale_max and float( altitude ) > .75 * rows / c_m[scale][Y]:
+            scale	       *= 4
+
+        # Draw the ground
+        for c in range ( 0, cols - 1 ):
+            if ( ground[c+1] > ground[c] ):
+                message( win, '/',  col = c, row = ground[c] )
+            elif ( ground[c+1] < ground[c] ):
+                message( win, '\\', col = c, row = ground[c] - 1 )
+            else:
+                message( win, '_',  col = c, row = ground[c] )
+            
+
         Op,Oi,Od		= autocntrl.contribution()
         message( win,
-                 "(out: % 8.4f/% 8.4f [P/p]: % 8.4f/% 8.4f (% 3d%%) [I/i]: % 8.4f/% 8.4f (% 3d%%) [D/d]: %8.4f/% 8.4f (% 3d%%))"
-                   % ( autocntrl.output, autocntrl.value,
-                       autocntrl.Kp, autocntrl.P, not isnan( Op ) and int( Op * 100 ) or 0,
-                       autocntrl.Ki, autocntrl.I, not isnan( Oi ) and int( Oi * 100 ) or 0,
-                       autocntrl.Kd, autocntrl.D, not isnan( Od ) and int( Od * 100 ) or 0 ),
+                 "Altitude: % 8.4f (x% 2d),  Thrust: % 8.4f [P/p]: % 8.4f/% 8.4f (% 3d%%) [I/i]: % 8.4f/% 8.4f (% 3d%%) [D/d]: %8.4f/% 8.4f (% 3d%%))"
+                   % ( float( altitude ), scale,
+                       autocntrl.value,
+                       autocntrl.Kp, autocntrl.P, not misc.isnan( Op ) and int( Op * 100 ) or 0,
+                       autocntrl.Ki, autocntrl.I, not misc.isnan( Oi ) and int( Oi * 100 ) or 0,
+                       autocntrl.Kd, autocntrl.D, not misc.isnan( Od ) and int( Od * 100 ) or 0 ),
                  row = 2, col = 0 )
 
         message( win, "(%s) % 7.3f,% 7.3fm @ % 7.3f,% 7.3fm/s %+ 7.3f,%+ 7.3fm/s^2" % (
                 autopilot and "auto" or "man.",
-                lndr.p[0], lndr.p[1], 
-                lndr.v[0], lndr.v[1],
-                lndr.a[0], lndr.a[1] ),
+                lndr.p[X], lndr.p[Y], 
+                lndr.v[X], lndr.v[Y],
+                lndr.a[X], lndr.a[Y] ),
                  row = 0, col = 0 )
                  
 
+        # Update the Lunar Lander, and keep track of its altidute (time-weighted)
+        lndr.move( now = now )
+        lndr.draw( win )
+        altitude.sample( lndr.p[Y] - ground[int( lndr.p[X] )], now = now )
 
-        for o in ol:
+        # Update all other objects
+        for o in othr:
             o.move( now = now )
             o.draw( win )
+            # If object has crashed down thru ground surface, destroy object, make crater.  
+            x			= int( o.p[X] )
+            if ( o.v[Y] < 0 and o.p[Y] <= ground[x] ):
+                ground[x] -= 1
+                w		= 1
+                if ( ground[x+w+1] - ground[x+w] > 1 ):
+                    ground[x+w+1] = ground[x+w] + 1
+                if ( ground[x-w-1] - ground[x-w] > 1 ):
+                    ground[x-w-1] = ground[x-w] + 1
+
+                othr.remove( o )
+
 
         if autopilot:
             # Autopilot enabled; set next period's throttle position
             # based on this period's resultant position vs. ground
-            throttle		= autocntrl.loop( ground[lndr.p[0]] / float( rows ), lndr.p[1] / float( rows ), now, Lout )
+            throttle		= autocntrl.loop( ground[lndr.p[X]] / float( rows ),
+                                                  lndr.p[Y] / float( rows ), now, Lout )
 
 
 if __name__=='__main__':
