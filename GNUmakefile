@@ -18,7 +18,7 @@ clean:
 
 # Only run tests in this directory.
 test:
-	py.test --nocapture *_test.py
+	py.test --capture=no *_test.py
 
 ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
 	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
