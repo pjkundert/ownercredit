@@ -2,12 +2,8 @@
 # 
 # GNU 'make' file
 # 
-# .tgz 	-- tar and gzipped file
-# .zip 	-- zip file
-# 
-#     Both contain a version-numbered directory, which contains the files
-# 
-VERSION		:=1.1.0
+
+VERSION		:=2.0.0
 OWFSVER		:=2.8p2
 OWFSPTH		:=http://sourceforge.net/projects/owfs/files/owfs/$(OWFSVER)/owfs-$(OWFSVER).tar.gz
 
@@ -20,6 +16,48 @@ clean:
 	    *.pyc 						\
 	    owfs-$(OWFSVER)*
 
+# Only run tests in this directory.
+test:
+	py.test --capture=no *_test.py
+
+# 
+# Owner Credit implemention
+# 
+# credit.py	-- A model wealth-backed currency implementation
+# pid.py	-- A PID controller implementation
+# 
+# lander.py	-- A partially complete Lunar Lander, with PID "auto" mode (spacebar switches)
+# hydronic.py	-- Core of a thermodynamic simulation for hydronically heated structures
+# jesperse.py	-- An thermodynamic simulation of an actual residence
+# 
+ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
+	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
+
+ownercredit-$(VERSION).zip:		/tmp/ownercredit-$(VERSION)
+	( cd /tmp && zip -r - $(notdir $<) ) > $@
+
+/tmp/ownercredit-$(VERSION):		README			\
+					GNUmakefile		\
+					credit.py		\
+					credit_test.py		\
+					pid.py			\
+					pid_test.py		\
+					misc.py			\
+					misc_test.py		\
+					filtered.py		\
+					filtered_test.py	\
+								\
+					lander.py		\
+					hydronic.py		\
+					hydronic_test.py	\
+					jespersen.py
+	rsync -va $^ $@/
+
+
+# 
+# Various tools used in Hydronic system implementations
+# 
+# ow, owfs -- Dallas Semiconductor 1-wire I/O
 .PHONY: owfs ow
 owfs:				/opt/owfs/bin/owserver
 ow:				/usr/lib/python2.6/dist-packages/ow
@@ -34,17 +72,3 @@ owfs-$(OWFSVER):		owfs-$(OWFSVER).tar.gz
 owfs-$(OWFSVER).tar.gz:
 	wget -c $(OWFSPTH)
 
-
-
-# Only run tests in this directory.
-test:
-	py.test --capture=no *_test.py
-
-ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
-	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
-
-ownercredit-$(VERSION).zip:		/tmp/ownercredit-$(VERSION)
-	( cd /tmp && zip -r - $(notdir $<) ) > $@
-
-/tmp/ownercredit-$(VERSION):
-	svn export svn+ssh://perry@kundert.ca/home/perry/svn/ownercredit/tags/r$(subst .,_,$(VERSION)) /tmp/ownercredit-$(VERSION)

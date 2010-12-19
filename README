@@ -14,6 +14,7 @@ USAGE
 
 	credit.py	-- implements a generic currency system
 	pid.py		-- implements a PID feedback controller
+	filtered.py     -- various value filtering tools
 	misc.py		-- other non-specific methods and data
 
     Simply import the credit module, and create a currency based on a
