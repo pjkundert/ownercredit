@@ -2,7 +2,6 @@
 from misc import *
 import filtered
 
-
 # Test the base averaged class.  Acts like a plain integer or float value, but is charged with
 # timestamped values using the .sample( value [, time ] ) method.  Implements a simple average of
 # all sample values within the time span specified at creation.
@@ -77,8 +76,8 @@ def test_weighted_with_simultaneous():
     assert near( 4.5, w )
     assert near( 5.0, w.sample(  6.,  4. ))
     assert near( 5.0, w.sample(  5.,  4. ))	# 4. and 6. now each in effect for 1.; 5. not yet
-    assert near( 5.0, w.sample(  5., 10. ))
-    assert near( 5.0, w.sample(  5., 12. ))	# Drops the 4. (but retains for time-weighted average!)
+    assert near( 5.0, w.sample(  now=10. ))
+    assert near( 5.0, w.sample(  now=12. ))	# Drops the 4. (but retains for time-weighted average!)
     assert near( 5.1, w.sample(  5., 13. ))	# Drops the 6. (but ...)
     assert near( 5.0, w.sample(  5., 14. ))	# Finally, only 5.'s in effect
     assert near( 5.0, w )
@@ -104,10 +103,10 @@ def test_weighted():
     assert near( 4.75, w.sample(  6.,  3. ))	# Now 5. and 4. have been in effect for 1. (each); followed by 6
     assert near( 4.75, w )
     assert near( 5.00, w.sample(  5.,  4. ))	# 4. and 6. now each in effect for 1.; now another 5.
-    assert near( 5.00, w.sample(  5., 10. ))
-    assert near( 5.05, w.sample(  5., 12. ))	# Drops the 4. (but retains for time-weighted average!)
-    assert near( 5.05, w.sample(  5., 13. ))	# Drops the 6. (but ...)
-    assert near( 5.00, w.sample(  5., 14. ))	# Finally, only 5.'s in effect
+    assert near( 5.00, w.sample(  now=10. ))    # (if no value provided, assumes no change since last value)
+    assert near( 5.05, w.sample(  now=12. ))	# Drops the 4. (but retains for time-weighted average!)
+    assert near( 5.05, w.sample(  now=13. ))	# Drops the 6. (but ...)
+    assert near( 5.00, w.sample(  now=14. ))	# Finally, only 5.'s in effect
     assert near( 5.00, w )
 
 

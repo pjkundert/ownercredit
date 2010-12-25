@@ -80,7 +80,6 @@ class value:
     __slots__			= [ 'value' ]
     def __init__( self,
                   value		= 0 ):
-
         self.value		= value
 
     def __str__( self ):

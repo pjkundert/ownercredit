@@ -43,7 +43,6 @@ class averaged( value ):
         self.interval		= interval
         self.history		= [ ( val, now ) ]
 
-
     def purge( self, now ):
         """
         Discard outdated samples.  May empty history.
@@ -64,13 +63,16 @@ class averaged( value ):
         return self.value
 
     def sample( self,
-                value,
+                value		= None,
                 now		= None ):
         """
-        Add sample, and compute value (simple average, only values within interval).  Should be
+        Add sample, and re-compute value (simple average, only values within interval).  Should be
         usable without change, if derived classes implement appropriate purge and/or compute
-        methods.  Returns value.
+        methods.  Returns newly computed result.  If no value given, uses last value (may raise
+        IndexError exception).
         """
+        if value is None:
+            value		= self.history[0][0]
         if now is None:
             now			= time.time()
 

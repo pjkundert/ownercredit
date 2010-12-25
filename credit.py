@@ -79,7 +79,6 @@ class currency:
 
         # Remember the latest commodity prices and total basket cost; used for computing how much
         # credit can be issued for pledges of any commodities.
-        
         self.price		= { }
         self.total		= 0.
 
@@ -88,7 +87,6 @@ class currency:
         # output.  So, if the next update() supplies prices that show that the value of the currency
         # is 1.0, then the error term will be 0, P and D will remain 0, and I will not change, K
         # will remain at the current value.
-
         Kp			= damping
         Ki			= 0.1
         Kd			= damping / 2.0
@@ -126,21 +124,19 @@ class currency:
     def K( self, which = -1 ):
         return self.data( which )[2]
 
-
     def update(
         self,
-        price			= { },
+        price			= None,
         now 			= None ):
         """
-        update( price )
-        
         Adjust currency based on the changes in given basket of commodity prices (may be a subset of
         reference basket after the initial update), at the given time.  Currently simply implements
         a linear ratio of the 1-window rolling average price vs. the reference commodity basket
         price.
 
-        You may invoke multiple call to update without computing 'K' or advancing 'self.now()', by
-        supplying the argument now == self.now(); it is illegal to try to move time backwards.
+        You may invoke multiple call to update price(s) without computing 'K' or advancing
+        'self.now()', by supplying the argument now == self.now(); it is illegal to try to move time
+        backwards.
         """
         if now is None:
             now			= time.time()
@@ -154,9 +150,9 @@ class currency:
         # currency the basket represents).  This will throw an exception if a commodity isn't
         # supplied (subsequent invocations will use previous price data, if not supplied)
 
-        # Pick out and remember any updated price for any item in the currency's basket
+        # Pick out and remember updated price(s), if any, for items in the currency's basket
         for c,u in self.basket.items():
-            if c in price.keys():
+            if price and c in price.keys():
                 self.price[c]	= price[c]
 
         if now <= self.now():

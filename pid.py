@@ -30,14 +30,14 @@ from misc import *
 # 
 # pid.controller-- Collect error and adjust output to compensate
 # 
-#     Implements a PID control loop, but acts like a simple integer or float value
-# in most use cases.  Automatically damps Integral term to avoid "wind-up", if output
-# is saturated.
-# 
-# 
 class controller( value ):
     """
+    Implements a PID control loop, but acts like a simple integer or float value in most use cases.
     Modulates output based on proportional error between current process value and desired setpoint.
+    Automatically damps Integral term to avoid "wind-up", if output is saturated.
+
+    Auto-adjusts the initial Integral term to yield the desired steady-state output, if the
+    given initial process value is maintained.
     """
     def __init__( self,
                   Kpid 		= ( 1.0, 1.0, 1.0 ),			# PID loop constants
