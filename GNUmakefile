@@ -18,7 +18,8 @@ clean:
 
 # Only run tests in this directory.
 test:
-	py.test --capture=no *_test.py
+	@py.test --version || echo "py.test not found; run 'sudo easy_install pytest'?"
+	py.test --capture=no *_test.py 
 
 # 
 # Owner Credit implemention
