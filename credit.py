@@ -25,7 +25,7 @@ from math import *
 import pid
 from misc import *	# math.nan, etc.
 
-class currency:
+class currency( object ):
     """
     Implements a currency based on a basket of commodities, and computes multiplier K over time.
 
@@ -55,9 +55,9 @@ class currency:
         self,
         symbol,						# eg. '$'
         label,						# eg. 'USD'
-        commodities 		= { },			# The definition of the backing commodities
-        basket			= { },			# Reference basket, specifying # Units and Proportion of value
-        multiplier		= 1,			# How many units of currency does 'basket' represent
+        commodities 		= None,			# The definition of the backing commodities
+        basket			= None,			# Reference basket, specifying # Units and Proportion of value
+        multiplier		= 1.,			# How many units of currency does 'basket' represent
         K			= 0.5,			# Initial credit/wealth ratio
         Lk			= ( 0.0, math.nan ),	# Allowed range of K (math.nan means no limit)
         damping			= 3.0,			# Amplify corrective movement by this factor (too much: oscillation)
@@ -72,8 +72,8 @@ class currency:
 
         self.symbol		= symbol
         self.label		= label		
-        self.commodities	= commodities.copy()
-        self.basket		= basket.copy()
+        self.commodities	= commodities or {}	# May be specified later, if desired
+        self.basket		= basket or {}		#  ''
         self.multiplier		= multiplier
         self.window		= window
 
@@ -116,12 +116,21 @@ class currency:
         return self.trend[which]
 
     def now( self, which = -1 ):
+        """
+        The time of the last currency update.
+        """
         return self.data( which )[0]
 
     def inflation( self, which = -1 ):
+        """
+        The latest inflation factor.
+        """
         return self.data( which )[1]
 
     def K( self, which = -1 ):
+        """
+        The latest currency credit ratio "K"
+        """
         return self.data( which )[2]
 
     def update(
@@ -150,15 +159,19 @@ class currency:
         # currency the basket represents).  This will throw an exception if a commodity isn't
         # supplied (subsequent invocations will use previous price data, if not supplied)
 
-        # Pick out and remember updated price(s), if any, for items in the currency's basket
+        # Pick out and remember updated price(s), if any, for items in the currency's basket.  If
+        # time has not advanced, this was just a price update; perform no further updating.
         for c,u in self.basket.items():
-            if price and c in price.keys():
+            if price and c in price:
                 self.price[c]	= price[c]
 
         if now <= self.now():
             return
 
-        # Time has advanced.  Use latest prices to update currency inflation
+        # Time has advanced.  Use latest prices to update currency price inflation.  We get the
+        # total current price of the basket of commodities comprising the currency, and divide by
+        # the basket-to-credit muliplier (now many units of credit are represented by the basket).
+        # The result should be 1.0 (no inflation).
         self.total		= 0.
         for c,u in self.basket.items():
             self.total	       += u * self.price[c]
@@ -414,7 +427,7 @@ def ui( win, title = "Test" ):
                  "In/decrease commodity values; [Aa]rrays, [Ee]nergy, [Mm]etal; see K change, 'til Inflation restored to 1.0000",
                  row = 3 )
         if now > gal.now():
-            # Time has advanced!  Update the galactic credit with the current commodit prices
+            # Time has advanced!  Update the galactic credit with the current commodity prices
             gal.update( price, now )
 
             data		= price.copy()

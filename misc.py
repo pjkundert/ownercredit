@@ -72,7 +72,7 @@ def magnitude( val, base = 10 ):
 # 
 # misc.value	-- Base class for things that should generally act like a float/int
 # 
-class value:
+class value( object ):
     """
     Acts like an integer or float in most use cases.  Use as a base class for
     things that want to have a simple integer or float value type interface.

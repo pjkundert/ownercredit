@@ -44,9 +44,9 @@ def test_money_create_1():
     multiplier			= 100		# 100 BUX is:
     basket			= {
         # Commodity	Amount
-        'beer':	         25,		# A "suitcase" plus one for the road, eh!  Booya!
-        'gas':	         50,		# Out to the cut line, and back...
-        'bullets':      100,		# Should be enough to bag that Elk!
+        'beer':	         25,		# (cans)   A "suitcase" plus one for the road, eh!  Booya!
+        'gas':	         50,		# (litres) Out to the cut line, and back...
+        'bullets':      100,		# (rounds) Should be enough to bag that Elk!
         }
 
     # What are the current commodity prices (per unit, specified above)?  These don't really matter
@@ -56,7 +56,7 @@ def test_money_create_1():
     # commodities corresponds (at current prices) to 100.00 BUX:
 
     prices			= {
-        # Commodity	 Price (represented per unit, for ease of understanding)
+        # Commodity	 Price (represented per standard sales multiple, for ease of understanding)
         "gas":		  1.00 /   1,	# BUX1.00/ea
         "beer":		  6.00 /   6,	# BUX1.00/ea
         "bullets":	 25.00 / 100,	# BUX0.25/ea

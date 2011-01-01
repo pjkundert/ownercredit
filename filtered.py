@@ -295,7 +295,7 @@ class weighted_linear( averaged ):
 # classes, which act like integers or floats (and can often be used as
 # such), but implement similar filtering features.
 # 
-class filter:
+class filter( object ):
     def __init__( self,
                   interval,				# May be a scalar interval, or tuple/list of interval, initial value
                   now		= None ):
