@@ -2,6 +2,22 @@
 from misc import *
 import filtered
 
+def test_level():
+    lvl			= filtered.level( 0.0, .25, [ -1, 1 ] )
+    assert near( 0.0, lvl )
+    assert 0 == lvl.state()
+    assert near( 0.0, lvl.sample( 0.0  ))
+    assert near( 0.0, lvl.sample( 0.25 ))
+    assert near( 0.26, lvl.sample( 0.26 ))
+    assert 0 == lvl.state()
+    '''
+    assert near( 0.99, lvl.sample( 0.99 ))
+    assert 0 == lvl.state()
+    assert near( 1.0, lvl.sample( 1.00 ))
+    assert 1 == lvl.state()
+    '''
+
+
 # Test the base averaged class.  Acts like a plain integer or float value, but is charged with
 # timestamped values using the .sample( value [, time ] ) method.  Implements a simple average of
 # all sample values within the time span specified at creation.

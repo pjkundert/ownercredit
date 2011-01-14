@@ -11,7 +11,8 @@ __copyright__				= "Copyright (c) 2006 Perry Kundert"
 __license__				= "GNU General Public License, Version 3 (or later)"
 
 import time
-from misc import *
+import misc
+import math
 
 
 # 
@@ -23,7 +24,7 @@ from misc import *
 # average, weighted by the current value and the elapsed time.
 # 
             
-class averaged( value ):
+class averaged( misc.value ):
     """
     Acts like an integer or float, but returns a simple average of values over a time period.
     Samples with identical value/timestamp are ignored.  Using no timestamp (or None) causes the
@@ -35,7 +36,7 @@ class averaged( value ):
                   interval,
                   val		= 0,
                   now		= None ):
-        value.__init__( self, val )
+        misc.value.__init__( self, val )
 
         if now is None:
             now			= time.time()
@@ -235,6 +236,122 @@ class weighted_linear( averaged ):
         return self.value
 
 
+class level( misc.value ):
+    """
+    Filter the incoming values into levels
+        normal = 0.0
+        levels = [
+          -3.0,
+          -1.0,
+           1.0,
+           3.0
+        ]
+        hysteresis = .1
+
+            high high
+        3.0 -------------------
+        2.9 . . . . . . . . . .
+        
+            high
+        1.0 -----------------o-
+         .9  . . . . . . . . o .
+normal  0.0 ---------------o---
+        -.9 . \ . . . . o o  
+       -1.0 ---\-------o-o   ^
+            low \     o    ^ |
+                 \   o     | |
+       -2.9 . . . o o . .  | |
+       -3.0 -------v-----  | |
+      /     low low        | |
+  levels       ^   ^ ^     | |
+               |   | |     | | 
+               |   | |     | +- Enters high
+               |   | |     +--- Enters normal  - must exceed hysteresis toward normal!
+               |   | +--------- Enters low     - must exceed hysteresis toward normal!
+               |   +----------- Enters low low
+               +--------------- Enters low
+        
+        
+    """
+    def __init__( self,
+                  normal	= 0,		# Normal value ==> 2 states (1 hi, -1 lo)
+                  hysteresis	= 0,		# Value hysteresis; must exceed toward normal state
+                  limits	= None,		# Each level adds a state (0 normal, -2 lo lo, 2 hi hi, ...)
+                  interval	= None,		# Time hysteresis; state change even within hysteresis
+                  value		= 0,		# Initial value
+                  now		= None ):
+        if now is None:
+            now 		= time.time()
+        misc.value.__init__( self, value )
+        self.normal             = normal	# The value considered in "normal" level 
+        self.limits		= limits or []
+        self.hysteresis		= hysteresis
+        self.interval		= interval
+        self._state		= 0
+        self.now		= now
+        self.sample( value, now )
+
+    def state( self ):
+        return self._state
+
+    def sample( self,
+                value		= None,
+                now		= None ):
+
+        # Compute the limits, for going upwards and downwards
+        # 
+	# Yes, these will skip normal iff hysteresis > 0!  The "normal"
+        # index into these arrays is 'no_idx'.
+        # 
+        #     self.limits: [-1, 1]
+        # self.hysteresis: .25
+        # 
+        #              up: [-.75,  .25, 1.0]
+        #              dn: [-1.0, -.25, .75]
+        # 
+        #          no_idx:  1
+        #          hi_sta:  2
+        #          lo_sta: -2
+        # 
+        state			= self._state
+        limits			= sorted( self.limits )
+        up	 		= [ self.normal + lim + self.hysteresis
+                                    for lim in limits if lim <= 0]
+        no_idx			= len( up )
+        hi_sta			= len( limits ) - no_idx
+        state			= min( state, hi_sta )
+        lo_sta			= no_idx - len( limits )
+        state			= max( state, lo_sta )
+        up		       += [ self.normal + self.hysteresis ]
+        up		       += [ self.normal + lim
+                                    for lim in limits if lim > 0]
+
+        dn	 		= [ self.normal + lim
+                                    for lim in limits if lim <= 0]
+        dn		       += [ self.normal - self.hysteresis ]
+        dn		       += [ self.normal + lim - self.hysteresis
+                                    for lim in limits if lim > 0]
+
+        print
+        print up
+        print dn
+        # Did we exit our state upwards?
+        while state < hi_sta and value >= up[no_idx + state]:
+            state	       += 1
+            print "Value %s moves us up, to state %s" % ( value, state )
+        while state > lo_sta and value <= dn[no_idx + state]:
+            state	       -= 1
+            print "Value %s moves us dn. to state %s" % ( value, state )
+
+        if ( state != self._state
+             or value > self.value + self.hysteresis
+             or value < self.value - self.hysteresis ):
+            self.value		= value
+            self._state		= state
+
+        return self.value
+
+
 # 
 # filter	-- filter values over time
 # 
@@ -311,13 +428,13 @@ class filter( object ):
         self.now		= now
 
         self.history		= [  ]
-        if not self.interval and not( isnan( self.weighted )):
+        if not self.interval and not( math.isnan( self.weighted )):
             # Zero timed weighting w/initial value; could be non-zero later, but make it work initially
             self.history.insert( 0, ( self.weighted, self.now ))
         self.sum		= 0.
         
     def get( self ):
-        if isnan( self.weighted ):
+        if math.isnan( self.weighted ):
             return self.sum / len( self.history )
 
         if self.interval:				# time-weighted...
@@ -341,8 +458,8 @@ class filter( object ):
         # reaches the end of the window, it is discarded.
         dead			= now - self.interval
         while len( self.history ) and self.history[-1][1] <= dead:
-            if not isnan( self.weighted ):
-                if not isnan( self.history[-1][0] ):
+            if not math.isnan( self.weighted ):
+                if not math.isnan( self.history[-1][0] ):
                     self.weighted = self.history[-1][0]
             self.history.pop()
 
@@ -351,7 +468,7 @@ class filter( object ):
 
         # Compute time-weighted or simple average of remaining values
         self.sum		= 0.
-        if isnan( self.weighted ):
+        if math.isnan( self.weighted ):
             # Simple average
             for v,t in self.history:
                 self.sum       += v
