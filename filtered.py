@@ -238,7 +238,24 @@ class weighted_linear( averaged ):
 
 class level( misc.value ):
     """
-    Filter the incoming values into levels
+    Filter the incoming values into levels. 
+
+    The minimal configuration requires a normal value (and no
+    hysteresis).  Incoming values will be either hi (1) or lo (-1)
+    state; only exact matches will be considered in the normal (0)
+    state:
+
+            hi
+                            o 
+normal  0.0 ---------------o---
+                          o 
+            lo         o o  ^
+                      o o  ^|
+                      ^    |+-- hi
+                      |    +--- normal
+                      +-------- lo
+
+
         normal = 0.0
         levels = [
           -3.0,
@@ -248,28 +265,28 @@ class level( misc.value ):
         ]
         hysteresis = .1
 
-            high high
+            hi hi
         3.0 -------------------
         2.9 . . . . . . . . . .
         
-            high
+            hi
         1.0 -----------------o-
-         .9  . . . . . . . . o .
-normal  0.0 ---------------o---
+         .9 . . . . . . . . o .
+normal  0.0                o
         -.9 . \ . . . . o o  
        -1.0 ---\-------o-o   ^
-            low \     o    ^ |
+            lo  \     o    ^ |
                  \   o     | |
        -2.9 . . . o o . .  | |
        -3.0 -------v-----  | |
-      /     low low        | |
+      /     lo lo          | |
   levels       ^   ^ ^     | |
                |   | |     | | 
-               |   | |     | +- Enters high
-               |   | |     +--- Enters normal  - must exceed hysteresis toward normal!
-               |   | +--------- Enters low     - must exceed hysteresis toward normal!
-               |   +----------- Enters low low
-               +--------------- Enters low
+               |   | |     | +- hi
+               |   | |     +--- normal - must exceed hysteresis toward normal!
+               |   | +--------- lo     - must exceed hysteresis toward normal!
+               |   +----------- lo lo
+               +--------------- lo
         
         
     """
@@ -287,12 +304,18 @@ normal  0.0 ---------------o---
         self.limits		= limits or []
         self.hysteresis		= hysteresis
         self.interval		= interval
-        self._state		= 0
+        self.state		= 0
         self.now		= now
         self.sample( value, now )
 
-    def state( self ):
-        return self._state
+    def level( self ):
+        return self.state
+
+    def name( self ):
+        lvl			= self.level()
+        if lvl == 0:
+            return "normal"
+        return ' '.join( [ lvl < 0 and 'lo' or 'hi' ] * abs( lvl ))
 
     def sample( self,
                 value		= None,
@@ -300,54 +323,50 @@ normal  0.0 ---------------o---
 
         # Compute the limits, for going upwards and downwards
         # 
-	# Yes, these will skip normal iff hysteresis > 0!  The "normal"
-        # index into these arrays is 'no_idx'.
+	# Yes, these will skip normal iff hysteresis > than the
+        # distance between the two adjacent states!
         # 
         #     self.limits: [-1, 1]
         # self.hysteresis: .25
         # 
-        #              up: [-.75,  .25, 1.0]
-        #              dn: [-1.0, -.25, .75]
+        #              up: [-.75, 1.0]
+        #              dn: [-1.0, .75]
         # 
-        #          no_idx:  1
-        #          hi_sta:  2
-        #          lo_sta: -2
-        # 
-        state			= self._state
+        #          hi_sta:  1
+        #          lo_sta: -1
+
+        state			= self.state
         limits			= sorted( self.limits )
-        up	 		= [ self.normal + lim + self.hysteresis
-                                    for lim in limits if lim <= 0]
-        no_idx			= len( up )
-        hi_sta			= len( limits ) - no_idx
-        state			= min( state, hi_sta )
-        lo_sta			= no_idx - len( limits )
-        state			= max( state, lo_sta )
-        up		       += [ self.normal + self.hysteresis ]
-        up		       += [ self.normal + lim
-                                    for lim in limits if lim > 0]
+        
+        up	 		= [ self.normal + lim + ( lim <  0 and self.hysteresis or 0 )
+                                    for lim in limits ]
+        dn		        = [ self.normal + lim - ( lim >= 0 and self.hysteresis or 0 )
+                                    for lim in limits ]
 
-        dn	 		= [ self.normal + lim
-                                    for lim in limits if lim <= 0]
-        dn		       += [ self.normal - self.hysteresis ]
-        dn		       += [ self.normal + lim - self.hysteresis
-                                    for lim in limits if lim > 0]
+        lo_sta			= -len( [ lim for lim in limits
+                                         if lim <  0 ] )
+        hi_sta			= lo_sta + len( limits )
+        state			= misc.clamp( state, ( lo_sta, hi_sta ))
 
-        print
+
+        print "state == ", state
+        print "lo_sta == ", lo_sta
+        print "hi_sta == ", hi_sta
         print up
         print dn
         # Did we exit our state upwards?
-        while state < hi_sta and value >= up[no_idx + state]:
+        while state < hi_sta and value >= up[state - lo_sta]:
             state	       += 1
             print "Value %s moves us up, to state %s" % ( value, state )
-        while state > lo_sta and value <= dn[no_idx + state]:
+        while state > lo_sta and value <= dn[state - lo_sta - 1]:
             state	       -= 1
             print "Value %s moves us dn. to state %s" % ( value, state )
 
-        if ( state != self._state
+        if ( state != self.state
              or value > self.value + self.hysteresis
              or value < self.value - self.hysteresis ):
             self.value		= value
-            self._state		= state
+            self.state		= state
 
         return self.value
 

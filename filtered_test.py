@@ -2,20 +2,36 @@
 from misc import *
 import filtered
 
-def test_level():
+def test_level_int():
+    lvl			= filtered.level( 0, 1, [ -10, 10 ] )
+    assert 0 == lvl
+    assert  8 == lvl.sample(  8 )
+    assert  9 == lvl.sample(  9 )
+    assert  0 == lvl.level()
+    assert 10 == lvl.sample( 10 )
+    assert  1 == lvl.level()
+
+def test_level_float():
     lvl			= filtered.level( 0.0, .25, [ -1, 1 ] )
     assert near( 0.0, lvl )
-    assert 0 == lvl.state()
+    assert 0 == lvl.level()
+    assert lvl.name() == "normal"
     assert near( 0.0, lvl.sample( 0.0  ))
     assert near( 0.0, lvl.sample( 0.25 ))
     assert near( 0.26, lvl.sample( 0.26 ))
-    assert 0 == lvl.state()
-    '''
+    assert 0 == lvl.level()
     assert near( 0.99, lvl.sample( 0.99 ))
-    assert 0 == lvl.state()
+    assert 0 == lvl.level()
     assert near( 1.0, lvl.sample( 1.00 ))
-    assert 1 == lvl.state()
-    '''
+    assert 1 == lvl.level()
+    assert lvl.name() == "hi"
+    assert near( 1.0, lvl.sample( 0.99 ))
+    assert 1 == lvl.level()
+    assert near( 1.0, lvl.sample( 0.75 ))
+    assert 1 == lvl.level()
+    assert near( .74, lvl.sample( 0.74 ))
+    assert 0 == lvl.level()
+
 
 
 # Test the base averaged class.  Acts like a plain integer or float value, but is charged with
