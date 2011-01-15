@@ -348,19 +348,44 @@ normal  0.0                o
         hi_sta			= lo_sta + len( limits )
         state			= misc.clamp( state, ( lo_sta, hi_sta ))
 
+        #print "state == ", state
+        #print "lo_sta == ", lo_sta
+        #print "hi_sta == ", hi_sta
+        #print up
+        #print dn
 
-        print "state == ", state
-        print "lo_sta == ", lo_sta
-        print "hi_sta == ", hi_sta
-        print up
-        print dn
         # Did we exit our state upwards?
-        while state < hi_sta and value >= up[state - lo_sta]:
-            state	       += 1
-            print "Value %s moves us up, to state %s" % ( value, state )
-        while state > lo_sta and value <= dn[state - lo_sta - 1]:
-            state	       -= 1
-            print "Value %s moves us dn. to state %s" % ( value, state )
+        while state < hi_sta:
+            lim = up[state - lo_sta]
+            if state < 0:
+                # Must exceed limit towards normal
+                if value >  lim:
+                    state      += 1
+                    #print "Value %s meets   %s, moves us up, to state %s" % (
+                    #    value, lim, state )
+                else:
+                    break
+            else:
+                # ... only meet it away from normal
+                if value >= lim:
+                    state      += 1
+                    #print "Value %s exceeds %s, moves us up, to state %s" % (
+                    #    value, lim, state )
+                else:
+                    break
+        # ... or downards?
+        while state > lo_sta:
+            lim = dn[state - lo_sta - 1]
+            if state > 0:
+                if value <  lim:
+                    state      -= 1
+                else:
+                    break
+            else:
+                if value <= lim:
+                    state      -= 1
+                else:
+                    break
 
         if ( state != self.state
              or value > self.value + self.hysteresis
@@ -446,7 +471,7 @@ class filter( object ):
 
         self.now		= now
 
-        self.history		= [  ]
+        self.history		= []
         if not self.interval and not( math.isnan( self.weighted )):
             # Zero timed weighting w/initial value; could be non-zero later, but make it work initially
             self.history.insert( 0, ( self.weighted, self.now ))

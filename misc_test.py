@@ -32,3 +32,19 @@ def test_magnitude():
     # base 2
     assert near( magnitude( 33., 2 ),  16. )
     assert near( magnitude( 50., 2 ),  32. )
+
+def test_value():
+    v = value( 1 )
+    v *= 5	# __imul__
+    assert 5 == v
+    i = 5
+    i /= v	# __rdiv__
+    assert i == 1
+    i
+    assert type( i ) == int
+    x = v + 5
+    assert type( x ) == int
+    x = 5 + v
+    assert type( x ) == int
+
+

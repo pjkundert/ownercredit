@@ -3,10 +3,26 @@ from misc import *
 import filtered
 
 def test_level_int():
-    lvl			= filtered.level( 0, 1, [ -10, 10 ] )
+    lvl			= filtered.level( 0, 0, [ -10, 10 ] )
+    assert int(lvl) == 0
     assert 0 == lvl
     assert  8 == lvl.sample(  8 )
     assert  9 == lvl.sample(  9 )
+    assert  0 == lvl.level()
+    assert 10 == lvl.sample( 10 )
+    assert  1 == lvl.level()
+    assert 11 == lvl.sample( 11 )
+    assert  1 == lvl.level()
+    assert 10 == lvl.sample( 10 )
+    assert  1 == lvl.level()
+    assert  9 == lvl.sample(  9 )
+    assert  0 == lvl.level()
+    
+    lvl			= filtered.level( 0, 1, [ -10, 10 ] )
+    assert int(lvl) == 0
+    assert 0 == lvl
+    assert  8 == lvl.sample(  8 )
+    assert  8 == lvl.sample(  9 ) # ignore changes within hysteresis of 1!
     assert  0 == lvl.level()
     assert 10 == lvl.sample( 10 )
     assert  1 == lvl.level()
@@ -32,6 +48,34 @@ def test_level_float():
     assert near( .74, lvl.sample( 0.74 ))
     assert 0 == lvl.level()
 
+def test_level_float_5state():
+
+    lvl			= filtered.level( 0.0, .25, [ -3, -1, 1, 3 ] )
+    assert near( 0.0, lvl )
+    assert 0 == lvl.level()
+    assert lvl.name() == "normal"
+    assert near( -1.0, lvl.sample( -1.0 )) # Only need to meet limit away from normal
+    assert -1 == lvl.level()
+    assert near( -3.0, lvl.sample( -3.0 )) # Only need to meet limit away from normal
+    assert -2 == lvl.level()
+    assert near( -3.0, lvl.sample( -2.75)) # Must exceed limit toward normal!
+    assert -2 == lvl.level()
+    assert near( -2.74, lvl.sample( -2.74)) # Must exceed limit toward normal!
+    assert -1 == lvl.level()
+
+    # Same limits, no hysteresis
+    lvl			= filtered.level( 0.0, 0, [ -3, -1, 1, 3 ] )
+    assert near( 0.0, lvl )
+    assert 0 == lvl.level()
+    assert lvl.name() == "normal"
+    assert near( -1.0, lvl.sample( -1.0 )) # Only need to meet limit away from normal
+    assert -1 == lvl.level()
+    assert near( -3.0, lvl.sample( -3.0 )) # Only need to meet limit away from normal
+    assert -2 == lvl.level()
+    assert near( -1.0, lvl.sample( -1.0 )) # Only need to meet limit away from normal
+    assert -1 == lvl.level()
+    assert near( -2.75, lvl.sample( -2.75 )) # Must exceed limit toward normal!
+    assert -1 == lvl.level()
 
 
 # Test the base averaged class.  Acts like a plain integer or float value, but is charged with

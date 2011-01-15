@@ -17,11 +17,19 @@ import time
 # math.nan	-- IEEE NaN (Not a Number)
 # math.isnan	-- True iff the provided value is math.nan
 # 
-# Augment math with some useful constants.  Note that IEEE NaN is the
+#     Augment math with some useful constants.  Note that IEEE NaN is the
 # only floating point number that won't equal itself.
-math.nan			= float( 'nan' )
-def isnan( f ):
-    return f != f
+if hasattr( math, 'nan' ):
+    nan				= math.nan
+else:
+    nan				= float( 'nan' )
+    math.nan			= nan
+if hasattr( math, 'isnan' ):
+    isnan			= math.isnan
+else:
+    def isnan( f ):
+        return f != f
+    math.isnan = isnan
 
 # 
 # near		-- True iff the specified values are within 'significance' of each-other
@@ -82,6 +90,37 @@ class value( object ):
                   value		= 0 ):
         self.value		= value
 
+    # Rich comparison
+    def __eq__( self, rhs ):
+        if isinstance( rhs, value ):
+            return self.value == rhs.value
+        return self.value == rhs
+    def __ne__( self, rhs ):
+        if isinstance( rhs, value ):
+            return self.value != rhs.value
+        return self.value != rhs
+
+    def __lt__( self, rhs ):
+        if isinstance( rhs, value ):
+            return self.value < rhs.value
+        return self.value < rhs
+    def __le__( self, rhs ):
+        if isinstance( rhs, value ):
+            return self.value <= rhs.value
+        return self.value <= rhs
+
+    def __gt__( self, rhs ):
+        if isinstance( rhs, value ):
+            return self.value > rhs.value
+        return self.value > rhs
+    def __ge__( self, rhs ):
+        if isinstance( rhs, value ):
+            return self.value >= rhs.value
+        return self.value >= rhs
+
+    # Cast
+    def __bool__( self ):
+        return bool( self.value )
     def __str__( self ):
         return str( self.value )
     def __int__( self ):
@@ -89,25 +128,43 @@ class value( object ):
     def __float__( self ):
         return float( self.value )
         
+    # Arithmetic operators
     def __sub__( self, rhs ):
         return self.value - rhs
     def __rsub__( self, lhs ):
         return lhs - self.value
+    def __iadd__( self, rhs ):
+        self.value -= rhs
+        return self
 
     def __add__( self, rhs ):
         return self.value + rhs
     def __radd__( self, lhs ):
         return lhs + self.value
+    def __iadd__( self, rhs ):
+        self.value += rhs
+        return self
 
     def __mul__( self, rhs ):
         return self.value * rhs
     def __rmul__( self, lhs ):
         return lhs * self.value
+    def __imul__( self, rhs ):
+        self.value *= rhs
+        return self
 
     def __div__( self, rhs ):
         return self.value / rhs
     def __rdiv__( self, lhs ):
         return lhs / self.value
+    def __idiv__( self, rhs ):
+        self.value /= rhs
+        return self
 
+    # Various mathematical operators
     def __abs__( self ):
         return abs( self.value )
+    def __neg__( self ):
+        return -self.value
+    def __pos__( self ):
+        return +self.value

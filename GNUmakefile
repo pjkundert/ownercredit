@@ -19,7 +19,20 @@ clean:
 # Only run tests in this directory.
 test:
 	@py.test --version || echo "py.test not found; run 'sudo easy_install pytest'?"
-	py.test --capture=no --ignore kalman_test.py
+	py.test --capture=no --ignore kalman_test.py *_test.py
+
+test-%:
+	py.test --capture=no *$*_test.py
+
+# 
+# Target to allow the printing of 'make' variables, eg:
+# 
+#     make print-CXXFLAGS
+# 
+print-%:
+	@echo $* = $($*) 
+	@echo $*\'s origin is $(origin $*)
+
 
 # 
 # Owner Credit implemention
