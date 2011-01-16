@@ -320,7 +320,6 @@ normal  0.0                o
     def sample( self,
                 value		= None,
                 now		= None ):
-
         # Compute the limits, for going upwards and downwards
         # 
 	# Yes, these will skip normal iff hysteresis > than the
@@ -361,7 +360,7 @@ normal  0.0                o
                 # Must exceed limit towards normal
                 if value >  lim:
                     state      += 1
-                    #print "Value %s meets   %s, moves us up, to state %s" % (
+                    #print "Value %s exceeds %s, moves us up, to state %s" % (
                     #    value, lim, state )
                 else:
                     break
@@ -369,7 +368,7 @@ normal  0.0                o
                 # ... only meet it away from normal
                 if value >= lim:
                     state      += 1
-                    #print "Value %s exceeds %s, moves us up, to state %s" % (
+                    #print "Value %s meets   %s, moves us up, to state %s" % (
                     #    value, lim, state )
                 else:
                     break
@@ -379,11 +378,15 @@ normal  0.0                o
             if state > 0:
                 if value <  lim:
                     state      -= 1
+                    #print "Value %s exceeds %s, moves down,  to state %s" % (
+                    #    value, lim, state )
                 else:
                     break
             else:
                 if value <= lim:
                     state      -= 1
+                    #print "Value %s meets   %s, moves down,  to state %s" % (
+                    #    value, lim, state )
                 else:
                     break
 
@@ -393,6 +396,7 @@ normal  0.0                o
             self.value		= value
             self.state		= state
 
+        self.now		= now
         return self.value
 
 
