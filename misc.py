@@ -82,13 +82,33 @@ def magnitude( val, base = 10 ):
 # 
 class value( object ):
     """
-    Acts like an integer or float in most use cases.  Use as a base class for
-    things that want to have a simple integer or float value type interface.
+    Acts like an integer or float in most use cases.  Use as a base
+    class for things that want to have a simple integer or float value
+    type interface for arithmetic expressions.
     """
-    __slots__			= [ 'value' ]
+    __slots__			= [ 'value', 'now' ]
     def __init__( self,
-                  value		= 0 ):
+                  value		= 0,
+                  now		= None ):
+        if now is None:
+            now			= time.time()
+        self.now		= now
         self.value		= value
+        self.sample( value, now )
+
+    def sample( self,
+               value		= None,
+               now		= None ):
+        """
+        The default sample method simply assigns the given value and
+        time.  If no new value is provided, the existing one is
+        retained (eg. if used to just advance the 'now' time)
+        """
+        if value is not None:
+            self.value		= value
+        if  now is None:
+            now			= time.time()
+        self.now		= now
 
     # Rich comparison
     def __eq__( self, rhs ):
@@ -118,7 +138,7 @@ class value( object ):
             return self.value >= rhs.value
         return self.value >= rhs
 
-    # Cast
+    # Casts
     def __bool__( self ):
         return bool( self.value )
     def __str__( self ):
@@ -128,13 +148,19 @@ class value( object ):
     def __float__( self ):
         return float( self.value )
         
-    # Arithmetic operators
+    # Arithmetic operators.  The in-place operators (+=, etc.) use the
+    # apply the rhs value as a sample; if the rhs is a misc.value,
+    # then it also knows to use the 'now' time.
+
     def __sub__( self, rhs ):
         return self.value - rhs
     def __rsub__( self, lhs ):
         return lhs - self.value
-    def __iadd__( self, rhs ):
-        self.value -= rhs
+    def __isub__( self, rhs ):
+        if isinstance( rhs, value ):
+            self.sample( self.value - rhs.value, rhs.now )
+        else:
+            self.sample( self.value - rhs )
         return self
 
     def __add__( self, rhs ):
@@ -142,7 +168,10 @@ class value( object ):
     def __radd__( self, lhs ):
         return lhs + self.value
     def __iadd__( self, rhs ):
-        self.value += rhs
+        if isinstance( rhs, value ):
+            self.sample( self.value + rhs.value, now )
+        else:
+            self.sample( self.value + rhs )
         return self
 
     def __mul__( self, rhs ):
@@ -150,7 +179,10 @@ class value( object ):
     def __rmul__( self, lhs ):
         return lhs * self.value
     def __imul__( self, rhs ):
-        self.value *= rhs
+        if isinstance( rhs, value ):
+            self.sample( self.value * rhs.value, rhs.now )
+        else:
+            self.sample( self.value * rhs )
         return self
 
     def __div__( self, rhs ):
@@ -158,7 +190,10 @@ class value( object ):
     def __rdiv__( self, lhs ):
         return lhs / self.value
     def __idiv__( self, rhs ):
-        self.value /= rhs
+        if isinstance( rhs, value ):
+            self.sample( self.value / rhs.value, rhs.now )
+        else:
+            self.sample( self.value / rhs )
         return self
 
     # Various mathematical operators

@@ -19,8 +19,9 @@ clean:
 # Only run tests in this directory.
 test:
 	@py.test --version || echo "py.test not found; run 'sudo easy_install pytest'?"
-	py.test --capture=no --ignore kalman_test.py *_test.py
+	py.test --capture=no *_test.py
 
+# Run only tests with a prefix containing the target string, eg test-filtered
 test-%:
 	py.test --capture=no *$*_test.py
 

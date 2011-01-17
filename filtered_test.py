@@ -3,6 +3,18 @@ from misc import *
 import filtered
 
 def test_level_int():
+    lvl			= filtered.level( 0, 0 )
+    assert 0 == lvl
+    assert lvl.name() == "lo"
+    assert 1 == lvl.sample( 1 )
+    assert lvl.name() == "normal"
+    assert -1 == lvl.sample( -1 )
+    assert lvl.name() == "lo"
+    assert 0 == lvl.sample( 0 )
+    assert lvl.name() == "lo"
+    assert 1 == lvl.sample( 1 )
+    assert lvl.name() == "normal"
+
     lvl			= filtered.level( 0, 0, [ -10, 10 ] )
     assert int(lvl) == 0
     assert 0 == lvl
