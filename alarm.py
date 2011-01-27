@@ -5,11 +5,13 @@ __date__ 				= "$Date: 2008-09-07 16:29:06 -0600 (Sun, 07 Sep 2008) $"
 __copyright__				= "Copyright (c) 2006 Perry Kundert"
 __license__				= "GNU General Public License, Version 3 (or later)"
 
-import time
-import misc
-import math
 import collections
+import math
 import random
+import time
+
+import filtered
+import misc
 
 
 
@@ -163,7 +165,7 @@ class ack( alarm ):
     """
     __slots__ = [ 'unacked', 'threshold' ]
 
-    def __init__( self, ack_threshold = 1, **kwargs ):
+    def __init__( self, ack_threshold=1, **kwargs ):
         """
         Pick off our parameters, if any, passing remaining
         keyword args along to next class' __init__.  Start off acked (no
@@ -201,7 +203,7 @@ class ack( alarm ):
                 return False
         return True
 
-    def compute( self, ack_seq = None, **kwargs ):
+    def compute( self, ack_seq=None, **kwargs ):
         """
         Generate a series of state changes, due to the provided
         input arguments.
@@ -261,6 +263,59 @@ class ack( alarm ):
                     print "%s.compute -- stays    acked, was %s, now %s" % (
                         self.__class__, self.unacked, ( self.sequence(), self.severity()))
                     self.unacked= ( self.sequence(), self.severity() )
+
+
+class level( alarm ):
+    """
+    Detect when a value passes various levels.  Uses the
+    filtered.level class to implement.  Default severity multiplies
+    the number of levels away from "normal" by 2; eg. normal==>0,
+    lo==>2, hi-hi==>4.
+    """
+    __slots__ = ['value']
+
+    def __init__( self, level_normal=0, level_hysteresis=0,
+                  level_limits=None, level_value=0, **kwargs ):
+        """
+        Pick off our parameters, if any, passing remaining
+        keyword args along to next class' __init__.  Start off acked (no
+        sequence number unacknowledged; it is up-to-date)
+
+        """
+        super( level, self ).__init__( **kwargs )
+        self.value		= filtered.level( normal=level_normal,
+                                                  hysteresis=level_hysteresis,
+                                                  limits=level_limits,
+                                                  value=level_value )
+
+    def description( self ):
+        return super( level, self ).description() + [self.value.name()]
+
+    def state( self ):
+        return ( self.value.state(), ) \
+               + super( level, self ).state()
+
+    def severity( self ):
+        return super( level, self ).severity() \
+                 + 2 * abs(self.value.level())
+
+    def compute( self, level_value=None, **kwargs ):
+        """
+        Generate a series of state changes, due to the provided
+        input arguments.
+        """
+        print "%s.compute( %s )" % ( self.__class__, kwargs )
+        transitions		= super( level, self ).compute( **kwargs )
+        for trans in transitions:
+            yield trans
+
+        if level_value is not None:
+            before		= self.value.level()
+            self.value.sample( level_value )
+            after		= self.value.level()
+            if after != before:
+                yield self.transition()
+        
 
 '''
 class nstate_ack_delay( ack, level, delay ):

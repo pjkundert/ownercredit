@@ -15,7 +15,7 @@ def test_level_int():
     assert 1 == lvl.sample( 1 )
     assert lvl.name() == "normal"
 
-    lvl			= filtered.level( 0, 0, [ -10, 10 ] )
+    lvl			= filtered.level( 0, 0, [-10, 10] )
     assert int(lvl) == 0
     assert 0 == lvl
     assert  8 == lvl.sample(  8 )
@@ -30,7 +30,7 @@ def test_level_int():
     assert  9 == lvl.sample(  9 )
     assert  0 == lvl.level()
     
-    lvl			= filtered.level( 0, 1, [ -10, 10 ] )
+    lvl			= filtered.level( 0, 1, [-10, 10] )
     assert int(lvl) == 0
     assert 0 == lvl
     assert  8 == lvl.sample(  8 )
@@ -40,7 +40,7 @@ def test_level_int():
     assert  1 == lvl.level()
 
 def test_level_float():
-    lvl			= filtered.level( 0.0, .25, [ -1, 1 ] )
+    lvl			= filtered.level( 0.0, .25, [-1, 1] )
     assert near( 0.0, lvl )
     assert 0 == lvl.level()
     assert lvl.name() == "normal"
@@ -62,7 +62,7 @@ def test_level_float():
 
 def test_level_float_5state():
 
-    lvl			= filtered.level( 0.0, .25, [ -3, -1, 1, 3 ] )
+    lvl			= filtered.level( 0.0, .25, [-3, -1, 1, 3] )
     assert near( 0.0, lvl )
     assert 0 == lvl.level()
     assert lvl.name() == "normal"
@@ -76,7 +76,7 @@ def test_level_float_5state():
     assert -1 == lvl.level()
 
     # Same limits, no hysteresis
-    lvl			= filtered.level( 0.0, 0, [ -3, -1, 1, 3 ] )
+    lvl			= filtered.level( 0.0, 0, [-3, -1, 1, 3] )
     assert near( 0.0, lvl )
     assert 0 == lvl.level()
     assert lvl.name() == "normal"

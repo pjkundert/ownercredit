@@ -309,8 +309,8 @@ normal  0.0                o
                   value		= 0,		# Initial value
                   now		= None ):
         self.normal             = normal	# The value considered in "normal" level 
-        self.limits		= limits or [0] # The default with no limits is "normal" and "lo"
         self.hysteresis		= hysteresis
+        self.limits		= limits or [0] # The default with no limits is "normal" and "lo"
         self.interval		= interval
         self.state		= 0
 
