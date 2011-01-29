@@ -103,16 +103,24 @@ class ack( alarm ):
     If we are presently unacknowledged, the sequence number provided
     to ack must exceed the stored sequence number.
     """
-    def __init__( self, ack_threshold=1, **kwargs ):
+    def __init__( self, *args, **kwargs ):
         """
-        Pick off our parameters, if any, passing remaining
-        keyword args along to next class' __init__.  Start off acked (no
-        sequence number unacknowledged; it is up-to-date)
+        Pick off our parameters, if any, passing remaining args along
+        to next class' __init__.  Start off acked (no sequence number
+        unacknowledged; it is up-to-date)
         """
-        super( ack, self ).__init__( **kwargs )
-        self.unacked		= ( self._sequence, self._severity )
-        self.unacked		= ( self.sequence(), self.severity() )
-        self.threshold		= ack_threshold
+        if args:
+            arg, args	= args[0], args[1:]
+        else:
+            arg		= kwargs.pop( 'ack', None )
+        super( ack, self ).__init__( *args, **kwargs )
+        threshold	= ( arg and arg or {} ).pop( 'threshold', 1 )
+        if threshold is not None:
+            self.threshold	= threshold
+        assert not arg
+
+        self.unacked		= ( self._sequence, 0 )	# Boostrap...
+        self.unacked		= ( self._sequence, self.severity() )
 
     def description( self ):
         return super( ack, self ).description() + [not self.acknowledged() and "ack req'd" or "acked"]
@@ -132,29 +140,36 @@ class ack( alarm ):
     def ack( self, seq ):
         """
         If the provided sequence number is acknowledged, then drive to
-        the acknowledged state, returning True.
+        the acknowledged state, returning True.  A None is ignored.
         """
         if not self.acknowledged():
-            if seq > self.unacked[0]:
+            if seq is not None and seq > self.unacked[0]:
                 self.unacked	= ( self.sequence(), self.severity() - 1 )
             else:
                 return False
         return True
 
-    def compute( self, ack_seq=None, **kwargs ):
+    def compute( self, *args, **kwargs ):
         """
-        Generate a series of state changes, due to the provided
-        input arguments.
+        Generate a series of state changes, due to the provided input
+        arguments.  Any provide positional arg (or an 'ack' keyword
+        arg) is assumed to be an acknowledgement sequence number (None
+        ==> no acknowledgement)
         """
-        #ack_seq = kwargs.pop( 'ack_seq', None )
+        if args:
+            arg, args	= args[0], args[1:]
+        else:
+            arg		= kwargs.pop( 'ack', None )
+        print "%s.compute( level=%s, %s %s )" % (
+            "level", arg, args, kwargs )
 
-        print "%s.compute( ack_seq=%s, %s )" % (
-            "ack", ack_seq, kwargs )
+        print "%s.compute( ack=%s, %s, %s )" % (
+            "ack", arg, args, kwargs )
 
         # First, see if we've been acked.  If the state sequence being
         # acknowledged is equal to the unacked sequence number, then
         # yes.
-        if not self.acknowledged() and self.ack( ack_seq ):
+        if not self.acknowledged() and self.ack( arg ):
             trans = self.transition()
             self.unacked	= ( self.sequence(), self.severity() )
             yield trans
@@ -164,7 +179,7 @@ class ack( alarm ):
         # test to see if we've met or exceeded our threshold to update/enter
         # our unacked status.
         acked			= self.acknowledged()
-        transitions		= super( ack, self ).compute( **kwargs )
+        transitions		= super( ack, self ).compute( *args, **kwargs )
         done			= False
         while not done:
             # Determine whether we are acked before making next transition
@@ -218,7 +233,6 @@ class ack( alarm ):
                         ( self.sequence(), sev ))
                     self.unacked= ( self.sequence(), sev )
 
-
 class level( alarm ):
     """
     Detect when a value passes various levels.  Uses the
@@ -226,19 +240,28 @@ class level( alarm ):
     the number of levels away from "normal" by 2; eg. normal==>0,
     lo==>2, hi-hi==>4.
     """
-    def __init__( self, level_normal=0, level_hysteresis=0,
-                  level_limits=None, level_value=0, **kwargs ):
+    def __init__( self, *args, **kwargs ):
         """
-        Pick off our parameters, if any, passing remaining
-        keyword args along to next class' __init__.  Start off acked (no
-        sequence number unacknowledged; it is up-to-date)
+        Pick off our configuration parameters, if any, passing
+        remaining args along to next class' __init__.  Take the next
+        positional arg (to support configuring alarms with multiple
+        level base classes), or a keyword arg.  Since we expect
+        keyword args with the same name as our class, we'll have to
+        pick them out of kwargs manually (to avoid overriding our
+        class name)...
 
+        We allow either an instance of filtered.level, or a dict of
+        keyward args to configure a new one (None ==> defaults)
         """
-        super( level, self ).__init__( **kwargs )
-        self.value		= filtered.level( normal=level_normal,
-                                                  hysteresis=level_hysteresis,
-                                                  limits=level_limits,
-                                                  value=level_value )
+        if args:
+            arg, args	= args[0], args[1:]
+        else:
+            arg		= kwargs.pop( 'level', None )
+        super( level, self ).__init__( *args, **kwargs )
+        if isinstance( arg, filtered.level ):
+            self.value	= arg
+        else:
+            self.value		= filtered.level( **( arg and arg or {} ))
 
     def description( self ):
         return super( level, self ).description() + [self.value.name()]
@@ -251,21 +274,25 @@ class level( alarm ):
         return super( level, self ).severity() \
                  + 2 * abs(self.value.level())
 
-    def compute( self, level_value=None, **kwargs ):
+    def compute( self, *args, **kwargs ):
         """
-        Generate a series of state changes, due to the provided
-        input arguments.
+        Generate a series of state changes, due to the provided input
+        arguments.  Pick off the next positional arg, or the keyword
+        arg named after our class.
         """
-        # level_value = kwargs.pop( 'level_value', None )
-        print "%s.compute( level_value=%s, %s )" % (
-            "level", level_value, kwargs )
-        transitions		= super( level, self ).compute( **kwargs )
+        if args:
+            arg, args	= args[0], args[1:]
+        else:
+            arg		= kwargs.pop( 'level', None )
+        print "%s.compute( level=%s, %s %s )" % (
+            "level", arg, args, kwargs )
+        transitions		= super( level, self ).compute( *args, **kwargs )
         for trans in transitions:
             yield trans
 
-        if level_value is not None:
+        if arg is not None:
             before		= self.value.level()
-            self.value.sample( level_value )
+            self.value.sample( arg )
             after		= self.value.level()
             if after != before:
                 yield self.transition()

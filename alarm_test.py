@@ -15,7 +15,7 @@ def test_ack():
     assert 0 == a.sequence()
     assert 0 == a.severity()
 
-    # Increase the (base) severity beyond threshold
+    # Increase the (base) severity beyond default threshold (1)
     a._severity = 1
     assert 1 == a.severity()
     trans = list( a.compute() )
@@ -25,10 +25,10 @@ def test_ack():
     assert 2 == a.severity()
 
     # Ack the alarm
-    trans = list( a.compute( ack_seq = 1) )
+    trans = list( a.compute( ack = 1) )
     assert 1 == len( trans )
     assert str( a ) == "<alarm seq# 2, sev.: 1, acked>"
-    trans = list( a.compute( ack_seq = 1) )
+    trans = list( a.compute( ack= 1) )
     assert 0 == len( trans )
     
     a._severity = 0
@@ -42,28 +42,30 @@ def test_ack():
     trans = list( a.compute() )
     assert 0 == len( trans )
     assert str( a ) == "<alarm seq# 3, sev.: 1, ack req'd>"
-    trans = list( a.compute( ack_seq = 3 ) )
+    trans = list( a.compute( ack = 3 ) )
     assert 1 == len( trans )
     assert str( a ) == "<alarm seq# 4, sev.: 0, acked>"
 
 def test_level():
-    a = alarm.level( leval_normal=0.0, level_hysteresis=.25,
-                     level_limits=[-3,-1,1,3] )
+    a = alarm.level( level={
+            'normal':		.0,
+            'hysteresis':	.25,
+            'limits':		[-3,-1,1,3]})
 
-    trans = list( a.compute( level_value=0.0 ))
+    trans = list( a.compute( level=0.0 ))
     assert 0 == len( trans )
     assert 0 == a.severity()
     assert str( a ) == "<alarm seq# 0, sev.: 0, normal>"
-    trans = list( a.compute( level_value=-2 ))
+    trans = list( a.compute( level=-2 ))
     assert 1 == len( trans )
     assert 2 == a.severity()
     assert str( a ) == "<alarm seq# 1, sev.: 2, lo>"
-    trans = list( a.compute( level_value=-1 ))
+    trans = list( a.compute( level=-1 ))
     assert 0 == len( trans )
     assert -1 == a.value.level()
     assert 2 == a.severity()
     assert str( a ) == "<alarm seq# 1, sev.: 2, lo>"
-    trans = list( a.compute( level_value=-.74 ))
+    trans = list( a.compute( level=-.74 ))
     assert 1 == len( trans )
     assert 0 == a.value.level()
     assert 0 == a.severity()
@@ -74,24 +76,60 @@ class acklevel( alarm.ack, alarm.level ):
     pass
 
 def test_acklevel():
-    a = acklevel( leval_normal=0.0, level_hysteresis=.25,
-                     level_limits=[-3,-1,1,3] )
+    a = acklevel( level={
+            'normal':		.0,
+            'hysteresis':	.25,
+            'limits':		[-3,-1,1,3]})
+
     
     assert str( a ) == "<alarm seq# 0, sev.: 0, normal, acked>"
-    tritr = iter( a.compute( level_value=3 ))
+    tritr = iter( a.compute( level=2 ))
     trans = tritr.next()
-    assert str( a ) == "<alarm seq# 1, sev.: 4, hi hi, acked>"
+    assert str( a ) == "<alarm seq# 1, sev.: 2, hi, acked>"
     assert True == a.acknowledged()
     trans = tritr.next()
-    assert str( a ) == "<alarm seq# 2, sev.: 5, hi hi, ack req'd>"
+    assert str( a ) == "<alarm seq# 2, sev.: 3, hi, ack req'd>"
     assert False == a.acknowledged()
     assert 0 == len(list( tritr ))
     assert False == a.acknowledged()
 
-    trans = list( a.compute( ack_seq=2 ))
+    tritr = iter( a.compute( level=3 ))
+    trans = tritr.next()
+    assert str( a ) == "<alarm seq# 3, sev.: 5, hi hi, ack req'd>"
+    assert 0 == len(list( tritr ))
+
+    trans = list( a.compute( ack =3 ))
     assert 1 == len( trans )
-    assert str( a ) == "<alarm seq# 3, sev.: 4, hi hi, acked>"
+    assert str( a ) == "<alarm seq# 4, sev.: 4, hi hi, acked>"
     
+def test_positional():
+    a = acklevel( { 
+            'threshold': 4 },
+                  {
+            'normal':		.0,
+            'hysteresis':	.25,
+            'limits':		[-3,-1,1,3]})
+
+    assert str( a ) == "<alarm seq# 0, sev.: 0, normal, acked>"
+    tritr = iter( a.compute( None, 2 ))
+    trans = tritr.next()
+    assert str( a ) == "<alarm seq# 1, sev.: 2, hi, acked>"
+    assert True == a.acknowledged()
+    assert 0 == len(list( tritr ))
+
+    tritr = iter( a.compute( None, 3 ))
+    trans = tritr.next()
+    assert str( a ) == "<alarm seq# 2, sev.: 4, hi hi, acked>"
+    trans = tritr.next()
+    assert str( a ) == "<alarm seq# 3, sev.: 5, hi hi, ack req'd>"
+    assert 0 == len(list( tritr ))
+
+    trans = list( a.compute( 3 ))
+    assert 1 == len( trans )
+    assert str( a ) == "<alarm seq# 4, sev.: 4, hi hi, acked>"
+    
+    
+
 
 
 if __name__=='__main__':
