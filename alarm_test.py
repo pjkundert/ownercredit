@@ -51,35 +51,50 @@ def test_level():
                      level_limits=[-3,-1,1,3] )
 
     trans = list( a.compute( level_value=0.0 ))
-    assert 0 == len(trans)
+    assert 0 == len( trans )
     assert 0 == a.severity()
     assert str( a ) == "<alarm seq# 0, sev.: 0, normal>"
     trans = list( a.compute( level_value=-2 ))
-    assert 1 == len(trans)
+    assert 1 == len( trans )
     assert 2 == a.severity()
     assert str( a ) == "<alarm seq# 1, sev.: 2, lo>"
     trans = list( a.compute( level_value=-1 ))
-    assert 0 == len(trans)
+    assert 0 == len( trans )
     assert -1 == a.value.level()
     assert 2 == a.severity()
     assert str( a ) == "<alarm seq# 1, sev.: 2, lo>"
     trans = list( a.compute( level_value=-.74 ))
-    assert 1 == len(trans)
+    assert 1 == len( trans )
     assert 0 == a.value.level()
     assert 0 == a.severity()
     assert str( a ) == "<alarm seq# 2, sev.: 0, normal>"
 
-'''
+
 class acklevel( alarm.ack, alarm.level ):
     pass
 
 def test_acklevel():
-    a = alarm.level( leval_normal=0.0, level_hysteresis=.25,
+    a = acklevel( leval_normal=0.0, level_hysteresis=.25,
                      level_limits=[-3,-1,1,3] )
     
-'''
+    assert str( a ) == "<alarm seq# 0, sev.: 0, normal, acked>"
+    tritr = iter( a.compute( level_value=3 ))
+    trans = tritr.next()
+    assert str( a ) == "<alarm seq# 1, sev.: 4, hi hi, acked>"
+    assert True == a.acknowledged()
+    trans = tritr.next()
+    assert str( a ) == "<alarm seq# 2, sev.: 5, hi hi, ack req'd>"
+    assert False == a.acknowledged()
+    assert 0 == len(list( tritr ))
+    assert False == a.acknowledged()
+
+    trans = list( a.compute( ack_seq=2 ))
+    assert 1 == len( trans )
+    assert str( a ) == "<alarm seq# 3, sev.: 4, hi hi, acked>"
+    
+
 
 if __name__=='__main__':
     test_ack()
     test_level()
-    #test_acklevel()
+    test_acklevel()

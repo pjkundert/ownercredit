@@ -6,6 +6,7 @@ __copyright__				= "Copyright (c) 2006 Perry Kundert"
 __license__				= "GNU General Public License, Version 3 (or later)"
 
 import collections
+import logging
 import math
 import random
 import time
@@ -16,59 +17,15 @@ import misc
 
 
 """
-    Alarm state machinery.  May be used to implement arbitrary alarm (and
-other value-driven) state machines.
-
-    Each stage of the alarm processes its input values, deduces 0, 1 (or
-more) state changes, and outputs the alarm state to the next handler.
-
-    @alarm.delay	# 3. Change states based on time in present state
-    @alarm.level	# 2. Change states based on comparing input to levels
-    @alarm.ack		# 1. Process acknowledgments
-    def nstate_ack_delay( state, value, limits ):
-        
-
-    (0) --> (1)
-            ^\
-           /  \
-          /    \
-         /      v
-       (3)<----(2)
+    Alarm state machinery.  May be used to implement arbitrary alarm
+(and other value-driven) state machines.  Multiple such state machines
+may be composed, resulting in an alarm with a multi-dimensinal state
+coordinate, containing the individual state of each sub-alarm.
 
 USAGE
 
-    After one or more state variables has changed, you may want to evaluate whether 
-an alarm's state has changed.
-
-    
-
-
-  class 5state_ack( alarm ):
-    # Class attributes
-    .table={
-      'name':[                'severity':[        'ackreqd':[
-        "hi hi (ack req'd)",    5,                  True,
-        "hi hi",                4,                  False,
-        "hi (ack reqd)",        3,                  True,
-        "hi",                   2,                  False,
-        "normal (ack req'd)",   1,                  True,
-        "normal",               0,                  False,
-        "lo (ack reqd)",        3,                  True,
-        "lo",                   2,                  False,
-        "lo lo (ack req'd)",    5,                  True,
-        "lo lo",                4,                  False,
-      ]                        ]                    ]
-    }
-
-    # Instance attributes
-    .state    = 
-    .sequence = 124
-
-    .history
-    .acked=[  .level=[
-     123       
-     123
-    ]
+    After one or more input variables has changed, you may want to
+evaluate whether an alarm's state has changed.
 
 
 DESIGN
@@ -83,32 +40,14 @@ level, state 0 in timer.
 
 alarm
 
-    Base class for alarm components, which contains a value type
-(eg. misc.value) implementing the descriptor protocol (ie. __get__,
-__set__).  Whenever a new value is assigned or accessed, the alarm
-chain is re-evaluated in light of the newly updated value, and the
-state machine may drive to a new state, triggering zero or more
-events.  The value is transparently returned -- the caller is unaware
-that all this is occuring.
-
-
-
-    self.something = alarm( misc.averaged( ... ))
-
-    self.something = 1
-    ...
-    self.something = 2
-
+    Base class for alarm components.
     
     Chain the classes together to form instance factories for complex
 state machines.
 
-
 """
 
 class alarm( object ):
-    __slots__ = [ '_sequence', '_severity' ]
-
     def __init__( self,
                   obj		= None,
                   *args, **kwargs ):
@@ -140,10 +79,11 @@ class alarm( object ):
         the provided inputs.  We force this base method to be a
         generator, but we never yield any state transitions.
         """
-        print "%s.compute( %s )" % ( self.__class__, kwargs )
-        assert args == ()
-        assert kwargs == {}
-        
+        print "%s.compute( %s, %s )" % (
+            "alarm", args, kwargs )
+
+        assert () == args
+        assert {} == kwargs
         raise StopIteration
     	yield self
 
@@ -163,8 +103,6 @@ class ack( alarm ):
     If we are presently unacknowledged, the sequence number provided
     to ack must exceed the stored sequence number.
     """
-    __slots__ = [ 'unacked', 'threshold' ]
-
     def __init__( self, ack_threshold=1, **kwargs ):
         """
         Pick off our parameters, if any, passing remaining
@@ -177,7 +115,7 @@ class ack( alarm ):
         self.threshold		= ack_threshold
 
     def description( self ):
-        return super( ack, self ).description() + [ not self.acknowledged() and "ack req'd" or "acked" ]
+        return super( ack, self ).description() + [not self.acknowledged() and "ack req'd" or "acked"]
 
     def state( self ):
         return ( not self.acknowledged() and 1 or 0, ) + super( ack, self ).state() 
@@ -208,7 +146,10 @@ class ack( alarm ):
         Generate a series of state changes, due to the provided
         input arguments.
         """
-        print "%s.compute( %s )" % ( self.__class__, kwargs )
+        #ack_seq = kwargs.pop( 'ack_seq', None )
+
+        print "%s.compute( ack_seq=%s, %s )" % (
+            "ack", ack_seq, kwargs )
 
         # First, see if we've been acked.  If the state sequence being
         # acknowledged is equal to the unacked sequence number, then
@@ -226,15 +167,23 @@ class ack( alarm ):
         transitions		= super( ack, self ).compute( **kwargs )
         done			= False
         while not done:
+            # Determine whether we are acked before making next transition
+            acked = self.acknowledged()
+
             try:
                 trans		= transitions.next()
             except StopIteration:
                 trans		= None
                 done		= True
             if not done:
+                # Yield the transition, maintaining acked state; we'll
+                # decide below whether or not to make a transition to
+                # unacked...
+                if acked:
+                    self.unacked= ( self.sequence(), self.unacked[1] )
+                print "%s.compute -- yielding: %s" % ( "ack", trans )
                 yield trans
 
-            print "%s.compute -- yielded: %s" % ( self.__class__, trans )
 
             # After each transition (and after detecting terminating
             # StopIteration), check if we should update/enter unack.
@@ -246,23 +195,28 @@ class ack( alarm ):
                     # that must be acked now!  Attempts to ack
                     # with prior sequence numbers will not work.
                     print "%s.compute -- unacked updated was %s, now %s" % (
-                        self.__class__, self.unacked, ( self.sequence()-1, sev ))
+                        "ack", self.unacked, ( self.sequence()-1, sev ))
                     self.unacked= ( self.sequence()-1, sev )
             else:
                 # Presently Acked.  Remain acked, unless severity increases.
                 if sev > self.unacked[1] and sev >= self.threshold:
-                    # Transition to unacknowledged state, by leaving
-                    # the self.unacked[0] sequence in the past...  The
+                    # Severity increased across threshold; Transition
+                    # to unacknowledged state, by leaving the
+                    # self.unacked[0] sequence in the past...  The
                     # severity will increase by 1 due to being unacked
                     # (but won't yet show), so account for that.
-                    print "%s.compute -- trans. unacked, was %s, now %s" % (
-                        self.__class__, self.unacked, ( self.sequence(), sev + 1 ))
+                    print "%s.compute -- transition to unacked, was %s, now %s" % (
+                        "ack", self.unacked, ( self.sequence(), sev + 1 ))
                     self.unacked= ( self.sequence(), sev + 1 )
-                    yield self.transition()
+                    trans = self.transition()
+                    print "%s.compute -- yielding: %s" % ( "ack", trans )
+                    yield trans
                 else:
+                    # Severity stayed same, or lowered.  Remain acked
                     print "%s.compute -- stays    acked, was %s, now %s" % (
-                        self.__class__, self.unacked, ( self.sequence(), self.severity()))
-                    self.unacked= ( self.sequence(), self.severity() )
+                        "ack", self.unacked,
+                        ( self.sequence(), sev ))
+                    self.unacked= ( self.sequence(), sev )
 
 
 class level( alarm ):
@@ -272,8 +226,6 @@ class level( alarm ):
     the number of levels away from "normal" by 2; eg. normal==>0,
     lo==>2, hi-hi==>4.
     """
-    __slots__ = ['value']
-
     def __init__( self, level_normal=0, level_hysteresis=0,
                   level_limits=None, level_value=0, **kwargs ):
         """
@@ -304,7 +256,9 @@ class level( alarm ):
         Generate a series of state changes, due to the provided
         input arguments.
         """
-        print "%s.compute( %s )" % ( self.__class__, kwargs )
+        # level_value = kwargs.pop( 'level_value', None )
+        print "%s.compute( level_value=%s, %s )" % (
+            "level", level_value, kwargs )
         transitions		= super( level, self ).compute( **kwargs )
         for trans in transitions:
             yield trans
@@ -334,7 +288,6 @@ class nstate_ack_delay( ack, level, delay ):
 
 
     class value_desc( object ):
-        __slots__		= [ '_value' ]
         # Descriptor Protocol
         # 
         #     If an instance of this object is contained in another new-style class,
