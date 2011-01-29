@@ -37,10 +37,31 @@ state in each sub-machine.  Eg (1,4,0) --> State 1 in ack, state 4 in
 level, state 0 in timer.
 
 
-
-alarm
-
 """
+
+def process( transitions ):
+    """
+    Process and discard a sequence of alarm notifications:
+
+        process( notify( a.compute(), logging.info ))
+
+    """
+    for trans in transitions:
+        pass
+
+def notify( transitions, logger ):
+    """
+    A generator taking a sequence of alarm transitions, logs them, and
+    then re-yields them:
+
+        transitions = notify( a.compute(), logging.info )
+        for trans in transitions:
+            ...
+    """
+    for trans in transitions:
+        logger( trans.message() )
+        yield trans
+
 
 class alarm( object ):
     """
@@ -67,12 +88,13 @@ class alarm( object ):
                   *args, **kwargs ):
         self._sequence 		= 0
         self._severity		= 0	# Base severity (normally 0, except for testing)
+        self._now		= None
 
     def description( self ):
-        return [ "seq# %d" % self.sequence(), "sev.: %d" % self.severity() ]
+        return [ "seq# %d" % self.sequence(), "sev: %d" % self.severity() ]
 
     def __repr__( self ):
-        return "<alarm " + ", ".join( self.description() ) + ">"
+        return "<%s " % self.__class__.__name__ + ", ".join( self.description() ) + ">"
 
     def state( self ):
         return ( self._sequence, )
@@ -83,10 +105,58 @@ class alarm( object ):
     def sequence( self ):
         return self._sequence
 
+    def now( self, now=None ):
+        """
+        Return (and possibly update) the present alarm time.
+        """
+        if self._now is None or now is not None:
+            # Forced update, due to initial state or a recent
+            # transition(), or caller providing a new 'now' time.
+            if now is None:
+                now 		= time.time()
+            self._now 		= now
+        return self._now
+
+    def message( self ):
+        """
+        Return the state change notification message for this type of
+        alarm.  Override in derived class to replace (or append to)
+        the default output.
+        """
+        return "%s" % (
+            time.ctime( self.now() )) + self.description()
+        
+
+    # ----------------------------------------------------------------------------
+    # State Transition Generator 
+    # 
+    #     Each alarm state transition generated during self.compute()
+    # must yield the results of self.transition(), and invoke
+    # self.advance() immediately following the yield:
+    #  
+    #     trans = self.transition()
+    #     yield trans
+    #     self.advance()
+    # 
+
     def transition( self ):
+        """
+        1) A transition has occured; advance sequence() numbering
+        immediately.  The caller will be yielding this soon; we are now in
+        
+        instance, and arranges to advance the now() time afterwards.
+        """
         self._sequence	       += 1
         return self
-    
+
+    def advance( self ):
+        """
+        After yielding the present alarm state, invalidates the now()
+        time.  This will force it to be updated the next time it is
+        accessed.
+        """
+        self._now		= None
+
     def compute( self, *args, **kwargs ):
         """
         Override to compute state transitions, if any, resulting from
@@ -137,7 +207,9 @@ class ack( alarm ):
         self.unacked		= ( self._sequence, self.severity() )
 
     def description( self ):
-        return super( ack, self ).description() + [not self.acknowledged() and "ack req'd" or "acked"]
+        return super( ack, self ).description() + [not self.acknowledged()
+                                                   and "ack required" 
+                                                   or  "acknowledged"]
 
     def state( self ):
         return ( not self.acknowledged() and 1 or 0, ) + super( ack, self ).state() 
@@ -186,7 +258,9 @@ class ack( alarm ):
         if not self.acknowledged() and self.ack( arg ):
             trans = self.transition()
             self.unacked	= ( self.sequence(), self.severity() )
+            print "%s.compute -- yielding: %s" % ( "ack", trans )
             yield trans
+            self.advance()
 
         # Next, yield any state transitions produced from the remaining
         # alarm classes that comprise this alarm.  As we see them,
@@ -212,6 +286,7 @@ class ack( alarm ):
                     self.unacked= ( self.sequence(), self.unacked[1] )
                 print "%s.compute -- yielding: %s" % ( "ack", trans )
                 yield trans
+                self.advance()
 
 
             # After each transition (and after detecting terminating
@@ -240,6 +315,7 @@ class ack( alarm ):
                     trans = self.transition()
                     print "%s.compute -- yielding: %s" % ( "ack", trans )
                     yield trans
+                    self.advance()
                 else:
                     # Severity stayed same, or lowered.  Remain acked
                     print "%s.compute -- stays    acked, was %s, now %s" % (
@@ -304,6 +380,7 @@ class level( alarm ):
         for trans in transitions:
             print "%s.compute -- yielding: %s" % ( "level", trans )
             yield trans
+            self.advance()
 
         if arg is not None:
             before		= self.value.level()
@@ -315,6 +392,7 @@ class level( alarm ):
                 trans = self.transition()
                 print "%s.compute -- yielding: %s" % ( "level", trans )
                 yield trans
+                self.advance()
         
 
 '''
