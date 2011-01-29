@@ -40,14 +40,28 @@ level, state 0 in timer.
 
 alarm
 
-    Base class for alarm components.
-    
-    Chain the classes together to form instance factories for complex
-state machines.
-
 """
 
 class alarm( object ):
+    """
+    Base class for alarm components.
+
+    Each transition is deemed to occur at an instant in time; the
+    beginning of the compute the initiated the transition.  This is
+    the "now" moment, which should be used by all state transition
+    computations during the compute.  Here's an example stack of 
+    compute() calls, with some resulting transitions.
+
+  real  alarm
+  time  .now()
+     1      1 compute		acklevel  Initial entry defines initial now()
+     2          compute         ack       First invokes super().compute...
+     3          compute         level     First invokes super().compute...
+     4            compute       alarm     Does nothing
+     6      1     transition    level     Trans from "normal" to "hi", advance now
+     7      6   transition      ack       Trans from "acked" to "ack req'd", advance now
+     8      7 (done)			  Return from compute, leaving now at 7
+    """
     def __init__( self,
                   obj		= None,
                   *args, **kwargs ):
@@ -288,6 +302,7 @@ class level( alarm ):
             "level", arg, args, kwargs )
         transitions		= super( level, self ).compute( *args, **kwargs )
         for trans in transitions:
+            print "%s.compute -- yielding: %s" % ( "level", trans )
             yield trans
 
         if arg is not None:
@@ -295,7 +310,11 @@ class level( alarm ):
             self.value.sample( arg )
             after		= self.value.level()
             if after != before:
-                yield self.transition()
+                print "%s.compute -- transition on level change; was %s, now %s" % (
+                    "level", before, after)
+                trans = self.transition()
+                print "%s.compute -- yielding: %s" % ( "level", trans )
+                yield trans
         
 
 '''
