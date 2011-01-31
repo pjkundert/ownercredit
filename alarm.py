@@ -86,7 +86,7 @@ class alarm( object ):
     def __init__( self,
                   obj		= None,
                   *args, **kwargs ):
-        self._sequence 		= 0
+        self._sequence 		= -1	# Force initial transition
         self._severity		= 0	# Base severity (normally 0, except for testing)
         self._now		= None
 
@@ -123,9 +123,10 @@ class alarm( object ):
         alarm.  Override in derived class to replace (or append to)
         the default output.
         """
-        return "%s" % (
-            time.ctime( self.now() )) + self.description()
-        
+        return "%s: Seq# %5d Sev: %2d" % (
+            time.ctime( self.now() ),
+            self.sequence(),
+            self.severity() )
 
     # ----------------------------------------------------------------------------
     # State Transition Generator 
@@ -137,6 +138,10 @@ class alarm( object ):
     #     trans = self.transition()
     #     yield trans
     #     self.advance()
+    # 
+    # Whenever we just pass along transitions generated somewhere
+    # else, we do not issue a self.advance(); the initiator of the
+    # transition will will do so.
     # 
 
     def transition( self ):
@@ -160,16 +165,17 @@ class alarm( object ):
     def compute( self, *args, **kwargs ):
         """
         Override to compute state transitions, if any, resulting from
-        the provided inputs.  We force this base method to be a
-        generator, but we never yield any state transitions.
+        the provided inputs.  We only ever generate the initial
+        boot-up transition.
         """
-        print "%s.compute( %s, %s )" % (
-            "alarm", args, kwargs )
-
         assert () == args
+        if 0 == kwargs.pop( '__depth', 0 ):
+            self.advance()
         assert {} == kwargs
+    	if self._sequence < 0:
+            yield self.transition()
+            self.advance()
         raise StopIteration
-    	yield self
 
 class ack( alarm ):
     """
@@ -207,9 +213,15 @@ class ack( alarm ):
         self.unacked		= ( self._sequence, self.severity() )
 
     def description( self ):
-        return super( ack, self ).description() + [not self.acknowledged()
-                                                   and "ack required" 
-                                                   or  "acknowledged"]
+        return super( ack, self ).description() + [self.acknowledged()
+                                                   and "acknowledged"
+                                                   or  "ack required"]
+
+    def message( self ):
+        return super( ack, self ).message() \
+            + ( self.acknowledged()
+                and " acknowledged"
+                or  " ack required" )
 
     def state( self ):
         return ( not self.acknowledged() and 1 or 0, ) + super( ack, self ).state() 
@@ -242,23 +254,21 @@ class ack( alarm ):
         arg) is assumed to be an acknowledgement sequence number (None
         ==> no acknowledgement)
         """
+        if 0 == kwargs.setdefault( '__depth', 0 ):
+            self.advance()
+        kwargs['__depth']      += 1
         if args:
             arg, args	= args[0], args[1:]
         else:
             arg		= kwargs.pop( 'ack', None )
-        print "%s.compute( level=%s, %s %s )" % (
-            "level", arg, args, kwargs )
-
-        print "%s.compute( ack=%s, %s, %s )" % (
-            "ack", arg, args, kwargs )
 
         # First, see if we've been acked.  If the state sequence being
         # acknowledged is equal to the unacked sequence number, then
         # yes.
         if not self.acknowledged() and self.ack( arg ):
             trans = self.transition()
-            self.unacked	= ( self.sequence(), self.severity() )
-            print "%s.compute -- yielding: %s" % ( "ack", trans )
+            self.ack( self.sequence() )
+            #print "%s.compute -- yielding: %s" % ( "ack", trans )
             yield trans
             self.advance()
 
@@ -284,10 +294,8 @@ class ack( alarm ):
                 # unacked...
                 if acked:
                     self.unacked= ( self.sequence(), self.unacked[1] )
-                print "%s.compute -- yielding: %s" % ( "ack", trans )
+                #print "%s.compute -- yielding: %s" % ( "ack", trans )
                 yield trans
-                self.advance()
-
 
             # After each transition (and after detecting terminating
             # StopIteration), check if we should update/enter unack.
@@ -298,8 +306,8 @@ class ack( alarm ):
                     # severe as before; update, so this is the one
                     # that must be acked now!  Attempts to ack
                     # with prior sequence numbers will not work.
-                    print "%s.compute -- unacked updated was %s, now %s" % (
-                        "ack", self.unacked, ( self.sequence()-1, sev ))
+                    #print "%s.compute -- unacked updated was %s, now %s" % (
+                    #    "ack", self.unacked, ( self.sequence()-1, sev ))
                     self.unacked= ( self.sequence()-1, sev )
             else:
                 # Presently Acked.  Remain acked, unless severity increases.
@@ -309,18 +317,18 @@ class ack( alarm ):
                     # self.unacked[0] sequence in the past...  The
                     # severity will increase by 1 due to being unacked
                     # (but won't yet show), so account for that.
-                    print "%s.compute -- transition to unacked, was %s, now %s" % (
-                        "ack", self.unacked, ( self.sequence(), sev + 1 ))
+                    #print "%s.compute -- transition to unacked, was %s, now %s" % (
+                    #    "ack", self.unacked, ( self.sequence(), sev + 1 ))
                     self.unacked= ( self.sequence(), sev + 1 )
                     trans = self.transition()
-                    print "%s.compute -- yielding: %s" % ( "ack", trans )
+                    #print "%s.compute -- yielding: %s" % ( "ack", trans )
                     yield trans
                     self.advance()
                 else:
                     # Severity stayed same, or lowered.  Remain acked
-                    print "%s.compute -- stays    acked, was %s, now %s" % (
-                        "ack", self.unacked,
-                        ( self.sequence(), sev ))
+                    #print "%s.compute -- stays    acked, was %s, now %s" % (
+                    #    "ack", self.unacked,
+                    #    ( self.sequence(), sev ))
                     self.unacked= ( self.sequence(), sev )
 
 class level( alarm ):
@@ -352,9 +360,17 @@ class level( alarm ):
             self.value	= arg
         else:
             self.value		= filtered.level( **( arg and arg or {} ))
+	# Memory of last-known level; external events may be driving
+        # the filtered.level, and we don't want to miss changes.
+        self.before	= self.value.level()
 
     def description( self ):
         return super( level, self ).description() + [self.value.name()]
+
+    def message( self ):
+        return super( level, self ).message() \
+            + "%9.3f ==> %-8s" % ( 
+                self.value, self.value.name() )
 
     def state( self ):
         return ( self.value.state(), ) \
@@ -370,30 +386,40 @@ class level( alarm ):
         arguments.  Pick off the next positional arg, or the keyword
         arg named after our class.
         """
+        if 0 == kwargs.setdefault( '__depth', 0 ):
+            self.advance()
+        kwargs['__depth']      += 1
+
         if args:
             arg, args	= args[0], args[1:]
         else:
             arg		= kwargs.pop( 'level', None )
-        print "%s.compute( level=%s, %s %s )" % (
-            "level", arg, args, kwargs )
+
         transitions		= super( level, self ).compute( *args, **kwargs )
         for trans in transitions:
-            print "%s.compute -- yielding: %s" % ( "level", trans )
+            #print "%s.compute -- yielding: %s" % ( "level", trans )
+            yield trans
+
+        # Always process a sample; at the least, 'now' will advance on
+        # __depth == 0 external invocations of compute()
+        self.value.sample( arg, now=self.now() )
+        after		= self.value.level()
+        if after != self.before:
+            print "%s.compute -- transition on level change; was %s, now %s" % (
+                "level", self.before, after)
+            self.before = after
+            trans = self.transition()
+            #print "%s.compute -- yielding: %s" % ( "level", trans )
             yield trans
             self.advance()
-
-        if arg is not None:
-            before		= self.value.level()
-            self.value.sample( arg )
-            after		= self.value.level()
-            if after != before:
-                print "%s.compute -- transition on level change; was %s, now %s" % (
-                    "level", before, after)
-                trans = self.transition()
-                print "%s.compute -- yielding: %s" % ( "level", trans )
-                yield trans
-                self.advance()
         
+
+class acklevel( ack, level ):
+    """
+    Level monitoring alarm, with acknowledgement.
+    """
+    pass
+
 
 '''
 class nstate_ack_delay( ack, level, delay ):

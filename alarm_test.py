@@ -5,13 +5,10 @@ import filtered
 def test_ack():
 
     a = alarm.ack()
+    trans = list( a.compute() )
+    assert 1 == len( trans )
     assert str( a ) == "<ack seq# 0, sev: 0, acknowledged>"
     assert ( 0, 0 ) == a.state()
-    assert 0 == a.sequence()
-    assert 0 == a.severity()
-
-    trans = list( a.compute() )
-    assert 0 == len( trans )
     assert 0 == a.sequence()
     assert 0 == a.severity()
 
@@ -53,7 +50,7 @@ def test_level():
             'limits':		[-3,-1,1,3]})
 
     trans = list( a.compute( level=0.0 ))
-    assert 0 == len( trans )
+    assert 1 == len( trans )
     assert 0 == a.severity()
     assert str( a ) == "<level seq# 0, sev: 0, normal>"
     trans = list( a.compute( level=-2 ))
@@ -71,19 +68,16 @@ def test_level():
     assert 0 == a.severity()
     assert str( a ) == "<level seq# 2, sev: 0, normal>"
 
-
-class acklevel( alarm.ack, alarm.level ):
-    pass
-
 def test_acklevel():
-    a = acklevel( level={
+    a = alarm.acklevel( level={
             'normal':		.0,
             'hysteresis':	.25,
             'limits':		[-3,-1,1,3]})
 
     
-    assert str( a ) == "<acklevel seq# 0, sev: 0, normal, acknowledged>"
     tritr = iter( a.compute( level=2 ))
+    trans = tritr.next()
+    assert str( a ) == "<acklevel seq# 0, sev: 0, normal, acknowledged>"
     trans = tritr.next()
     assert str( a ) == "<acklevel seq# 1, sev: 2, hi, acknowledged>"
     assert True == a.acknowledged()
@@ -103,15 +97,16 @@ def test_acklevel():
     assert str( a ) == "<acklevel seq# 4, sev: 4, hi hi, acknowledged>"
     
 def test_positional():
-    a = acklevel( { 
+    a = alarm.acklevel( { 
             'threshold': 4 },
                   {
             'normal':		.0,
             'hysteresis':	.25,
             'limits':		[-3,-1,1,3]})
 
-    assert str( a ) == "<acklevel seq# 0, sev: 0, normal, acknowledged>"
     tritr = iter( a.compute( None, 2 ))
+    trans = tritr.next()
+    assert str( a ) == "<acklevel seq# 0, sev: 0, normal, acknowledged>"
     trans = tritr.next()
     assert str( a ) == "<acklevel seq# 1, sev: 2, hi, acknowledged>"
     assert True == a.acknowledged()
