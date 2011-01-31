@@ -67,11 +67,15 @@ class alarm( object ):
     """
     Base class for alarm components.
 
-    Each transition is deemed to occur at an instant in time; the
-    beginning of the compute the initiated the transition.  This is
-    the "now" moment, which should be used by all state transition
-    computations during the compute.  Here's an example stack of 
-    compute() calls, with some resulting transitions.
+    Each alarm state transition is deemed to occur at an instant in
+    time; the beginning of the compute(), or the moment the thread
+    returned from the last transition()'s yeild marks the new() time
+    for the next alarm state.  This is the "now" moment, which should
+    be used by all state transition computations during the compute,
+    and by any code receiving the alarm state yield results.
+    
+    Here's an example stack of compute() calls, with some resulting
+    transitions.
 
   real  alarm
   time  .now()
@@ -156,9 +160,9 @@ class alarm( object ):
 
     def advance( self ):
         """
-        After yielding the present alarm state, invalidates the now()
-        time.  This will force it to be updated the next time it is
-        accessed.
+        After yielding a new alarm state transition, invalidates the
+        now() time.  This will force it to be updated the next time it
+        is accessed.
         """
         self._now		= None
 
@@ -405,8 +409,8 @@ class level( alarm ):
         self.value.sample( arg, now=self.now() )
         after		= self.value.level()
         if after != self.before:
-            print "%s.compute -- transition on level change; was %s, now %s" % (
-                "level", self.before, after)
+            #print "%s.compute -- transition on level change; was %s, now %s" % (
+            #    "level", self.before, after)
             self.before = after
             trans = self.transition()
             #print "%s.compute -- yielding: %s" % ( "level", trans )
