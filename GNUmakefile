@@ -1,11 +1,9 @@
 
 # 
-# GNU 'make' file
+# OnwerCredit GNU 'make' file
 # 
 
-VERSION		:=2.0.0
-OWFSVER		:=2.8p2
-OWFSPTH		:=http://sourceforge.net/projects/owfs/files/owfs/$(OWFSVER)/owfs-$(OWFSVER).tar.gz
+VERSION		:=3.0.0
 
 .PHONY: all clean
 all:				ownercredit-$(VERSION).zip	\
@@ -13,8 +11,7 @@ all:				ownercredit-$(VERSION).zip	\
 				clean
 clean:
 	rm -rf /tmp/ownercredit-$(VERSION)			\
-	    *.pyc 						\
-	    owfs-$(OWFSVER)*
+	    *.pyc
 
 # Only run tests in this directory.
 test:
@@ -34,16 +31,14 @@ print-%:
 	@echo $* = $($*) 
 	@echo $*\'s origin is $(origin $*)
 
-
 # 
 # Owner Credit implemention
 # 
 # credit.py	-- A model wealth-backed currency implementation
 # pid.py	-- A PID controller implementation
-# 
+# misc.py	-- Various math related utilites, such as NaN, and a generic "value" type object
+# filtered.py	-- Things that act like numerical values, but implement averaging type behaviour
 # lander.py	-- A partially complete Lunar Lander, with PID "auto" mode (spacebar switches)
-# hydronic.py	-- Core of a thermodynamic simulation for hydronically heated structures
-# jesperse.py	-- An thermodynamic simulation of an actual residence
 # 
 ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
 	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
@@ -61,29 +56,7 @@ ownercredit-$(VERSION).zip:		/tmp/ownercredit-$(VERSION)
 					misc_test.py		\
 					filtered.py		\
 					filtered_test.py	\
-								\
-					lander.py		\
-					hydronic.py		\
-					hydronic_test.py	\
-					jespersen.py
+					lander.py
+
 	rsync -va $^ $@/
-
-
-# 
-# Various tools used in Hydronic system implementations
-# 
-# ow, owfs -- Dallas Semiconductor 1-wire I/O
-.PHONY: owfs ow
-owfs:				/opt/owfs/bin/owserver
-ow:				/usr/lib/python2.6/dist-packages/ow
-
-/opt/owfs/bin/owserver:		owfs-$(OWFSVER)
-	cd $<; ./configure && make # && make install
-/usr/lib/python2.6/dist-packages/ow:				\
-				owfs-$(OWFSVER)
-	cd $</modules/swig/python && python setup.py install
-owfs-$(OWFSVER):		owfs-$(OWFSVER).tar.gz
-	tar xzf $<
-owfs-$(OWFSVER).tar.gz:
-	wget -c $(OWFSPTH)
 
