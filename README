@@ -1,11 +1,13 @@
 Owner Credit System
 
+
 OVERVIEW
 
-    For a discussion of the theory and design of this credit syste, visit:
+    Tools for implementing a prototype wealth-backed currency system.
+
+    For a discussion of the theory and design of this credit system, visit:
 
         http://docs.google.com/Doc?id=dg8bjkjk_12q6fjpbdk
-
 
 
 USAGE
@@ -139,8 +141,6 @@ currency.now()		-- most recent timestamp
     Optionally supply an index (eg. 0, -1 (the default), 100...)
 
 currency.trend		-- the whole list of trend data, if you want it
-
-
 
 
 SIMULATION
