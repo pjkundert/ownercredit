@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-credit.currency	-- Basic credit system currency computations
+credit.currency -- Basic credit system currency computations
 
     Implements basic credit system functionality.
 
@@ -11,11 +11,11 @@ credit.currency	-- Basic credit system currency computations
  
 """
 
-__author__ 			= "Perry Kundert (perry@kundert.ca)"
-__version__ 			= "$Revision: 1.2 $"
-__date__ 			= "$Date: 2006/05/10 16:51:11 $"
-__copyright__			= "Copyright (c) 2006 Perry Kundert"
-__license__			= "GNU General Public License, Version 3 (or later)"
+__author__                      = "Perry Kundert (perry@kundert.ca)"
+__version__                     = "$Revision: 1.2 $"
+__date__                        = "$Date: 2006/05/10 16:51:11 $"
+__copyright__                   = "Copyright (c) 2006 Perry Kundert"
+__license__                     = "GNU General Public License, Version 3 (or later)"
 
 import time
 from math import *
@@ -23,7 +23,7 @@ from math import *
 # Local modules
 
 import pid
-from misc import *	# math.nan, etc.
+from misc import *      # math.nan, etc.
 
 class currency( object ):
     """
@@ -53,59 +53,59 @@ class currency( object ):
 
     def __init__(
         self,
-        symbol,						# eg. '$'
-        label,						# eg. 'USD'
-        commodities 		= None,			# The definition of the backing commodities
-        basket			= None,			# Reference basket, specifying # Units and Proportion of value
-        multiplier		= 1.,			# How many units of currency does 'basket' represent
-        K			= 0.5,			# Initial credit/wealth ratio
-        Lk			= ( 0.0, math.nan ),	# Allowed range of K (math.nan means no limit)
-        damping			= 3.0,			# Amplify corrective movement by this factor (too much: oscillation)
-        window			= 7*24*60*60,		# Default to 1 week sliding average to filter currency value
-        now			= None ):		# Initial time (default to seconds)
+        symbol,                                         # eg. '$'
+        label,                                          # eg. 'USD'
+        commodities             = None,                 # The definition of the backing commodities
+        basket                  = None,                 # Reference basket, specifying # Units and Proportion of value
+        multiplier              = 1.,                   # How many units of currency does 'basket' represent
+        K                       = 0.5,                  # Initial credit/wealth ratio
+        Lk                      = ( 0.0, math.nan ),    # Allowed range of K (math.nan means no limit)
+        damping                 = 3.0,                  # Amplify corrective movement by this factor (too much: oscillation)
+        window                  = 7*24*60*60,           # Default to 1 week sliding average to filter currency value
+        now                     = None ):               # Initial time (default to seconds)
         """
         Establish the fundamentals and initial conditions of the currency.  It will always be
         valued based on the initial proportional relationship between the commodities.
         """
         if now is None:
-            now			= time.time()
+            now                 = time.time()
 
-        self.symbol		= symbol
-        self.label		= label		
-        self.commodities	= commodities or {}	# May be specified later, if desired
-        self.basket		= basket or {}		#  ''
-        self.multiplier		= multiplier
-        self.window		= window
+        self.symbol             = symbol
+        self.label              = label         
+        self.commodities        = commodities or {}     # May be specified later, if desired
+        self.basket             = basket or {}          #  ''
+        self.multiplier         = multiplier
+        self.window             = window
 
         # Remember the latest commodity prices and total basket cost; used for computing how much
         # credit can be issued for pledges of any commodities.
-        self.price		= { }
-        self.total		= 0.
+        self.price              = { }
+        self.total              = 0.
 
         # Create the PID loop, and pre-load the integral to produce the initial K.  If there is 0
         # error (P term) and 0 error rate of change (D term), then only the I term influences the
         # output.  So, if the next update() supplies prices that show that the value of the currency
         # is 1.0, then the error term will be 0, P and D will remain 0, and I will not change, K
         # will remain at the current value.
-        Kp			= damping
-        Ki			= 0.1
-        Kd			= damping / 2.0
-        Kpid			= ( Kp, Ki, Kd )
+        Kp                      = damping
+        Ki                      = 0.1
+        Kd                      = damping / 2.0
+        Kpid                    = ( Kp, Ki, Kd )
 
         # In addition to hard-limiting output to Lk, we'll actually limit the integral too.  It will
         # put a "soft" limit on output, because it is the error Integral (sum of errors) that
         # produces the gross constant output value (the other terms P and D are transient, and
         # immediately cease influencing output when the error disappears).  Then, we'll clamp the
         # momentary "spikes" above/below the provided range Lk, if error is extreme.
-        Li			= ( Lk[0] / Ki, Lk[1] / Ki )	# will retain math.nan, if provided
+        Li                      = ( Lk[0] / Ki, Lk[1] / Ki )    # will retain math.nan, if provided
 
-        self.stabilizer		= pid.pid( Kpid = Kpid,
+        self.stabilizer         = pid.pid( Kpid = Kpid,
                                            Finp = window, Li = Li, Lout = Lk,
                                            now = now )
-        self.stabilizer.I	= K / self.stabilizer.Kpid[1]
+        self.stabilizer.I       = K / self.stabilizer.Kpid[1]
 
-        #                           time	value	K
-        self.trend		= [ ( now,	1.0,	K ) ]
+        #                           time        value   K
+        self.trend              = [ ( now,      1.0,    K ) ]
 
 
     # Returns the current (default) data, or a selected value of K,
@@ -135,8 +135,8 @@ class currency( object ):
 
     def update(
         self,
-        price			= None,
-        now 			= None ):
+        price                   = None,
+        now                     = None ):
         """
         Adjust currency based on the changes in given basket of commodity prices (may be a subset of
         reference basket after the initial update), at the given time.  Currently simply implements
@@ -148,7 +148,7 @@ class currency( object ):
         backwards.
         """
         if now is None:
-            now			= time.time()
+            now                 = time.time()
         if now < self.now():
             raise Exception, "Attempt to update multiple times for previous time period"
 
@@ -163,7 +163,7 @@ class currency( object ):
         # time has not advanced, this was just a price update; perform no further updating.
         for c,u in self.basket.items():
             if price and c in price:
-                self.price[c]	= price[c]
+                self.price[c]   = price[c]
 
         if now <= self.now():
             return
@@ -172,10 +172,10 @@ class currency( object ):
         # total current price of the basket of commodities comprising the currency, and divide by
         # the basket-to-credit muliplier (now many units of credit are represented by the basket).
         # The result should be 1.0 (no inflation).
-        self.total		= 0.
+        self.total              = 0.
         for c,u in self.basket.items():
-            self.total	       += u * self.price[c]
-        inf			= self.total / self.multiplier
+            self.total         += u * self.price[c]
+        inf                     = self.total / self.multiplier
 
         # If the basket of commodities has dropped in price (deflation), the total price will have
         # dropped -- value / multiplier will be < 1.0 (driving K up).  If prices have gone up
@@ -183,7 +183,7 @@ class currency( object ):
         # -- value / multiplier value will be > 1.0 (driving K down).
 
         # Run the PID loop with current inflation to get an updated value for K.
-        K			= self.stabilizer.loop( 1.0, inf, now )
+        K                       = self.stabilizer.loop( 1.0, inf, now )
         self.trend.append( ( now, inf, K ) )
 
     def credit( self, basket ):
@@ -204,10 +204,10 @@ class currency( object ):
         be worth.
         """
 
-        value			= 0.
+        value                   = 0.
         for c,u in basket.items():
             if c in self.basket.keys():
-                value	       += u * self.price[c]
+                value          += u * self.price[c]
 
         return value * self.K()
 
@@ -219,35 +219,35 @@ class currency( object ):
 
 def draw( win, y, x, s ):
     """ Clip and plot, inverting y """
-    rows, cols			= win.getmaxyx()
-    ix				=  int( x )
-    iy				= -int( y ) + rows - 1
+    rows, cols                  = win.getmaxyx()
+    ix                          =  int( x )
+    iy                          = -int( y ) + rows - 1
     if iy >= 0 and iy < rows:
         if ix >= 0 and ix < cols:
             win.addstr( iy, ix, s )
             
 def xform( win, trans, ry, rx, s  ):
-    y				= ry * trans[0][1]	# Sy
-    x				= rx * trans[1][1]	# Sx
-    y			       -= trans[0][2]		# Zy
-    x			       -= trans[1][2]		# Zx
+    y                           = ry * trans[0][1]      # Sy
+    x                           = rx * trans[1][1]      # Sx
+    y                          -= trans[0][2]           # Zy
+    x                          -= trans[1][2]           # Zx
     if y < 0 or x < 0:
         # The string is in the margins of the graph
         return
-    draw( win, y + trans[0][0], x + trans[1][0], s )	# Oy, Ox
+    draw( win, y + trans[0][0], x + trans[1][0], s )    # Oy, Ox
 
 def plot( win, Py, Px, trend ):
-    rows, cols			= win.getmaxyx()
+    rows, cols                  = win.getmaxyx()
 
     # Compute fixed offset, scale and zero point
-    Ox				= 10.
-    Oy				=  5.
-    Sx				= ( cols - Ox ) / ( Px[1] - Px[0] )
-    Sy				= ( rows - Oy ) / ( Py[1] - Py[0] )
-    Zx				= Px[0] * Sx
-    Zy				= Py[0] * Sx
+    Ox                          = 10.
+    Oy                          =  5.
+    Sx                          = ( cols - Ox ) / ( Px[1] - Px[0] )
+    Sy                          = ( rows - Oy ) / ( Py[1] - Py[0] )
+    Zx                          = Px[0] * Sx
+    Zy                          = Py[0] * Sx
 
-    trans			= ( ( Oy, Sy, Zy ), ( Ox, Sx, Zx ) )
+    trans                       = ( ( Oy, Sy, Zy ), ( Ox, Sx, Zx ) )
     
     #draw( win, 0, 0, "Ox:% 7.2f, Sx:% 7.2f, Px:% 7.2f-% 7.2f, Zx:% 7.2f" % ( Ox, Sx, Px[0], Px[1], Zx ))
     #draw( win, 1, 0, "Oy:% 7.2f, Sy:% 7.2f, Py:% 7.2f-% 7.2f, Zy:% 7.2f" % ( Oy, Sy, Py[0], Py[1], Zy ))
@@ -281,83 +281,83 @@ def ui( win, title = "Test" ):
     # Simulate a credit system, with buyers that tend to bid higher when credit is
     # loose, and bid lower when credit is tight.
 
-    rows, cols			= win.getmaxyx()
+    rows, cols                  = win.getmaxyx()
 
-    timewarp			= 3.0					# Slow down real-time by this factor
-    increment			= 1.0					# Process no time change increments smaller than this
+    timewarp                    = 3.0                                   # Slow down real-time by this factor
+    increment                   = 1.0                                   # Process no time change increments smaller than this
 
-    Finp			= 0.					# Filter input?
-    Fset			= 1.0					#   or setpoint?
+    Finp                        = 0.                                    # Filter input?
+    Fset                        = 1.0                                   #   or setpoint?
 
-    Kpid			= (    2.0,      1.0,      2.0   )	# PID loop tuning
-    Lk				= (    0.1,      0.9   )		# Limit K to practical values (no zero or infinite credit)
-#    Lk				= ( math.nan, math.nan )
-    Li				= ( math.nan, math.nan )		# Avoid integral wind-up if prices don't respond
-#    Li				= ( math.nan, math.nan )
+    Kpid                        = (    2.0,      1.0,      2.0   )      # PID loop tuning
+    Lk                          = (    0.1,      0.9   )                # Limit K to practical values (no zero or infinite credit)
+#    Lk                         = ( math.nan, math.nan )
+    Li                          = ( math.nan, math.nan )                # Avoid integral wind-up if prices don't respond
+#    Li                         = ( math.nan, math.nan )
 
-    now				= 0.0
+    now                         = 0.0
 
 
     # GAL -- # -- Galactic Credits
     # Establish the current market prices for commodities
 
-    commodities			= {
-        # Commodity	Units	 -of-	Quality	  -at-	Market
-        "metal":	( "1t",		"Alloys",	"Market Warpgate"	),
-        "energy":	( "1pj", 	"Crystals"	"Market Warpgate"	),
-        "arrays":	( "1pf",	"Flops",	"Market Warpgate"	),
+    commodities                 = {
+        # Commodity     Units    -of-   Quality   -at-  Market
+        "metal":        ( "1t",         "Alloys",       "Market Warpgate"       ),
+        "energy":       ( "1pj",        "Crystals"      "Market Warpgate"       ),
+        "arrays":       ( "1pf",        "Flops",        "Market Warpgate"       ),
         }
-    multiplier			= 1
-    basket			= {
-        # Commodity	Amount
-        "metal":	  1. / 7 / 3,
-        "energy":	  2. / 7 / 3,
-        "arrays":	  4. / 7 / 3,
-        }
-
-    price			= {
-        # Commodity	Price	
-        "metal":	  1.00 /   1,	# GAL1.00
-        "energy":	  2.00 /   1,	# GAL2.00
-        "arrays":	  4.00 /   1,	# GAL4.00
+    multiplier                  = 1
+    basket                      = {
+        # Commodity     Amount
+        "metal":          1. / 7 / 3,
+        "energy":         2. / 7 / 3,
+        "arrays":         4. / 7 / 3,
         }
 
+    price                       = {
+        # Commodity     Price   
+        "metal":          1.00 /   1,   # GAL1.00
+        "energy":         2.00 /   1,   # GAL2.00
+        "arrays":         4.00 /   1,   # GAL4.00
+        }
 
-    K				= 0.5
-    damping			= 2.0
-    window			= 3.0
-    gal				= currency( '#', 'GAL',
+
+    K                           = 0.5
+    damping                     = 2.0
+    window                      = 3.0
+    gal                         = currency( '#', 'GAL',
                                             commodities, basket, multiplier,
                                             K = K, Lk = Lk, damping = damping,
                                             window = window,
                                             now = now )
 
-    start			= gal.now()
+    start                       = gal.now()
 
     # Track the asset price and currency K, value and avg
-    trend			= [ ]
+    trend                       = [ ]
 
 
-    last			= time.time()
+    last                        = time.time()
     while 1:
         message( win, "Quit [qy/n]?, Timewarp:% 7.2f [W/w], Increment:% 7.2f, Filter setp.:% 7.2f[S/s], value:% 7.2f[V/v]"
                  % ( timewarp, increment, gal.stabilizer.set.interval, gal.stabilizer.inp.interval ),
                  row = 0 )
         win.refresh()
-        input			= win.getch()
+        input                   = win.getch()
 
         # New frame of animation
         win.clear()
 
         # Compute time advance, after time warp.  Advance now only by increments.
-        real			= time.time()
-        delta			= ( real - last ) / timewarp
-        steps			= int( delta / increment )
+        real                    = time.time()
+        delta                   = ( real - last ) / timewarp
+        steps                   = int( delta / increment )
         if steps > 0:
-            last	       += steps * increment * timewarp
-            now		       += steps * increment
+            last               += steps * increment * timewarp
+            now                += steps * increment
 
-        rows, cols		= win.getmaxyx()
+        rows, cols              = win.getmaxyx()
 
         if input >= 0 and input <= 255:
             if chr( input ) == 'y' or chr( input ) == 'q':
@@ -380,34 +380,34 @@ def ui( win, title = "Test" ):
 
             # Adjust Kp
             if chr( input ) == 'P':
-                gal.stabilizer.Kpid	= ( gal.stabilizer.Kpid[0] + .1, gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0] + .1, gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] )
             if chr( input ) == 'p':
-                gal.stabilizer.Kpid	= ( gal.stabilizer.Kpid[0] - .1, gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0] - .1, gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] )
 
             # Adjust Ki
             if chr( input ) == 'I':
-                gal.stabilizer.Kpid	= ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1] + .1, gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1] + .1, gal.stabilizer.Kpid[2] )
             if chr( input ) == 'i':
-                gal.stabilizer.Kpid	= ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1] - .1, gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1] - .1, gal.stabilizer.Kpid[2] )
 
             # Adjust Kd
             if chr( input ) == 'D':
-                gal.stabilizer.Kpid	= ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] + .1 )
+                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] + .1 )
             if chr( input ) == 'd':
-                gal.stabilizer.Kpid	= ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] - .1 )
+                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] - .1 )
 
             if chr( input ) == 'E':
-                price['energy']	+= .01
+                price['energy'] += .01
             if chr( input ) == 'e':
-                price['energy']	 = max( 0.0, price['energy'] - .01 )
+                price['energy']  = max( 0.0, price['energy'] - .01 )
             if chr( input ) == 'M':
-                price['metal']	+= .01
+                price['metal']  += .01
             if chr( input ) == 'm':
-                price['metal']	 = max( 0.0, price['metal'] - .01 )
+                price['metal']   = max( 0.0, price['metal'] - .01 )
             if chr( input ) == 'A':
-                price['arrays']	+= .01
+                price['arrays'] += .01
             if chr( input ) == 'a':
-                price['arrays']	 = max( 0.0, price['arrays'] - .01 )
+                price['arrays']  = max( 0.0, price['arrays'] - .01 )
 
 
         message( win,
@@ -430,9 +430,9 @@ def ui( win, title = "Test" ):
             # Time has advanced!  Update the galactic credit with the current commodity prices
             gal.update( price, now )
 
-            data		= price.copy()
-            data['K']		= gal.K()
-            data['Inflation']	= gal.inflation()
+            data                = price.copy()
+            data['K']           = gal.K()
+            data['Inflation']   = gal.inflation()
 
             trend.append(  ( now, data ))
 
@@ -445,7 +445,7 @@ if __name__=='__main__':
         stdscr=curses.initscr()
         curses.noecho() ; curses.cbreak(); curses.halfdelay( 1 )
         stdscr.keypad(1)
-        ui( stdscr, title="Rocket" )	# Enter the mainloop
+        ui( stdscr, title="Rocket" )    # Enter the mainloop
         stdscr.keypad(0)
         curses.echo() ; curses.nocbreak()
         curses.endwin()                 # Terminate curses
@@ -454,4 +454,3 @@ if __name__=='__main__':
         curses.echo() ; curses.nocbreak()
         curses.endwin()
         traceback.print_exc()           # Print the exception
-

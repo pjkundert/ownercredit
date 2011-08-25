@@ -5,6 +5,9 @@
 
 VERSION		:=3.0.0
 
+PY=python
+PYTEST=$(PY) -m pytest --capture=no
+
 .PHONY: all clean
 all:				ownercredit-$(VERSION).zip	\
 				ownercredit-$(VERSION).tgz	\
@@ -16,11 +19,14 @@ clean:
 # Only run tests in this directory.
 test:
 	@py.test --version || echo "py.test not found; run 'sudo easy_install pytest'?"
-	py.test --capture=no *_test.py
+	$(PYTEST) *_test.py
 
-# Run only tests with a prefix containing the target string, eg test-filtered
+# Run only tests with a prefix containing the target string, eg test-blah
 test-%:
-	py.test --capture=no *$*_test.py
+	$(PYTEST) *$*_test.py
+
+unit-%:
+	$(PYTEST) -k $*
 
 # 
 # Target to allow the printing of 'make' variables, eg:

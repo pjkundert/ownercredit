@@ -35,10 +35,10 @@ def test_magnitude():
 
 def test_value():
     v = value( 1 )
-    v *= 5	# __imul__
+    v *= 5      # __imul__
     assert 5 == v
     i = 5
-    i /= v	# __rdiv__
+    i /= v      # __rdiv__
     assert i == 1
     i
     assert type( i ) == int

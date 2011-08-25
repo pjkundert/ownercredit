@@ -45,9 +45,9 @@ def test_ack():
 
 def test_level():
     a = alarm.level( level={
-            'normal':		.0,
-            'hysteresis':	.25,
-            'limits':		[-3,-1,1,3]})
+            'normal':           .0,
+            'hysteresis':       .25,
+            'limits':           [-3,-1,1,3]})
 
     trans = list( a.compute( level=0.0 ))
     assert 1 == len( trans )
@@ -70,9 +70,9 @@ def test_level():
 
 def test_acklevel():
     a = alarm.acklevel( level={
-            'normal':		.0,
-            'hysteresis':	.25,
-            'limits':		[-3,-1,1,3]})
+            'normal':           .0,
+            'hysteresis':       .25,
+            'limits':           [-3,-1,1,3]})
 
     
     tritr = iter( a.compute( level=2 ))
@@ -100,9 +100,9 @@ def test_positional():
     a = alarm.acklevel( { 
             'threshold': 4 },
                   {
-            'normal':		.0,
-            'hysteresis':	.25,
-            'limits':		[-3,-1,1,3]})
+            'normal':           .0,
+            'hysteresis':       .25,
+            'limits':           [-3,-1,1,3]})
 
     tritr = iter( a.compute( None, 2 ))
     trans = tritr.next()

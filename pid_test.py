@@ -4,21 +4,21 @@
 Implements tests for the pid module.
 """
 
-__author__ 				= "Perry Kundert (perry@kundert.ca)"
-__version__ 				= "$Revision: 1.2 $"
-__date__ 				= "$Date: 2006/05/10 16:51:11 $"
-__copyright__				= "Copyright (c) 2006 Perry Kundert"
-__license__				= "GNU General Public License, Version 3 (or later)"
+__author__                              = "Perry Kundert (perry@kundert.ca)"
+__version__                             = "$Revision: 1.2 $"
+__date__                                = "$Date: 2006/05/10 16:51:11 $"
+__copyright__                           = "Copyright (c) 2006 Perry Kundert"
+__license__                             = "GNU General Public License, Version 3 (or later)"
 
 # local modules
 import pid
 from misc import *
 
 # 
-# pid.pid	-- Basic test, no filtering.
+# pid.pid       -- Basic test, no filtering.
 # 
 def test_pid_pid():
-    control		= pid.pid( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
+    control             = pid.pid( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
 
     assert near( control.loop( 1.0, 1.0, now = 1. ),   0.0000 )
     assert near( control.loop( 1.0, 1.0, now = 2. ),   0.0000 )
@@ -40,7 +40,7 @@ def test_pid_pid():
 # pid.controller -- Same test
 # 
 def test_pid_controller():
-    control		= pid.controller( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
+    control             = pid.controller( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
 
     assert near( control.loop( 1.0, 1.0, now = 1. ),   0.0000 )
     assert near( control.loop( 1.0, 1.0, now = 2. ),   0.0000 )
@@ -61,12 +61,12 @@ def test_pid_controller():
 # pid.controller -- Steady state
 # 
 def test_pid_controller_steady():
-    control		= pid.controller(
-        			Kpid 	= ( 2.0, 1.0, 2.0 ),
+    control             = pid.controller(
+                                Kpid    = ( 2.0, 1.0, 2.0 ),
                                 setpoint=  1.0,
-                                process	=  2.0,
-                                output	=  5.0,
-                                now	=  0. )
+                                process =  2.0,
+                                output  =  5.0,
+                                now     =  0. )
 
     assert near( control.Kp, 2.000 )
     assert near( control.Ki, 1.000 )
@@ -113,12 +113,12 @@ def test_pid_controller_steady():
 # pid.controller -- Initial integral computation
 # 
 def test_pid_controller_integral():
-    control		= pid.controller(
-        			Kpid 	= ( 2.0, 1.0, 2.0 ),
+    control             = pid.controller(
+                                Kpid    = ( 2.0, 1.0, 2.0 ),
                                 setpoint=  1.0,
-                                process	=  1.0,
-                                output	= 10.0,
-                                now	=  0. )
+                                process =  1.0,
+                                output  = 10.0,
+                                now     =  0. )
 
     assert near( control.Kp, 2.000 )
     assert near( control.Ki, 1.000 )
@@ -126,12 +126,12 @@ def test_pid_controller_integral():
     assert near( control.P,  0.000 )
     assert near( control.I, 10.000 )
 
-    control		= pid.controller(
-        			Kpid 	= ( 2.0, 3.0, 1.0 ),
+    control             = pid.controller(
+                                Kpid    = ( 2.0, 3.0, 1.0 ),
                                 setpoint=  1.0,
-                                process	=  1.0,
-                                output	= 10.0,
-                                now	=  0. )
+                                process =  1.0,
+                                output  = 10.0,
+                                now     =  0. )
 
     assert near( control.Kp, 2.000 )
     assert near( control.Ki, 3.000 )
@@ -161,12 +161,12 @@ def test_pid_controller_integral():
 # to limits.
 # 
 def test_pid_controller_integral():
-    control		= pid.controller(
-        			Kpid 	= ( 2.0, 3.0, 1.0 ),
+    control             = pid.controller(
+                                Kpid    = ( 2.0, 3.0, 1.0 ),
                                 setpoint=  1.0,
-                                process	=  1.0,
-                                output	= 10.0,
-                                now	=  0. )
+                                process =  1.0,
+                                output  = 10.0,
+                                now     =  0. )
 
     assert near( control.Kp, 2.000 )
     assert near( control.Ki, 3.000 )
