@@ -52,19 +52,29 @@ class averaged( misc.value ):
             while len( self.history ) > 0 and self.history[-1][1] <= deadline:
                 self.history.pop()
 
-    def compute( self ):
+    def compute( self,
+                 now		= None ):
         """
         Return simple average of samples.  Recomputes value if history is not empty, is it will
         never be so long as a sample is added after purge is invoked.  Returns value (without
-        recomputing if history is empty).
+        recomputing if history is empty of relevant values.)
         """
         with self.lock:
-            value               = self.value
-            if self.history:
-                value           = 0
-                for v,t in self.history:
+            if now is None:
+                now		= self.now
+            value               = 0
+            count		= 0
+            for v,t in self.history:
+                if t < now + self.interval:
                     value      += v
-                value          /= len( self.history )
+                else:
+                    break
+                count          += 1
+            if count:
+                value          /= count
+            else:
+                # No relevant history; return current value
+                value		= self.value
         return value
 
     def sample( self,
@@ -77,12 +87,12 @@ class averaged( misc.value ):
         If None value provided, uses last value (may raise IndexError exception).
         """
         if isinstance( value, misc.value ):
+            # Another misc.value, then we'll compute its current value relative to the timestamp
+            # we're given (if None; obtain from other value, holding its lock for consistency)
             with value.lock:
-                # Another misc.value; hold its lock to ensure consistent value/now.  NOTE we do NOT
-                # hold multiple locks!
-                value           = value.value
                 if now is None:
                     now         = value.now
+                value		= value.compute( now=now )
         else:
             # No lock required; single value, atomic access
             if value is None:
@@ -101,7 +111,7 @@ class averaged( misc.value ):
             self.now            = now
             self.purge()
             self.history.appendleft( ( value, now ) )
-            self.value = self.compute()
+            self.value 		= self.compute()
             return self.value
 
 
@@ -154,11 +164,11 @@ class weighted( averaged ):
         with self.lock:
             if now is None:
                 now             = self.now
-            if len( self.history ) < 2 or self.history[0][1] == self.history[-1][1]:
-                if self.history:
-                    # Single value, or 0 interval
-                    self.value      = self.history[0][0]
-                return self.value
+            if not( now >= self.history[0][1]
+                    and now > self.history[-1][1] ):
+                # No net offset between now and first/last historical value; we only have single
+                # usable historical value.
+                return self.history[0][0]
             
             # We have at least 2 samples; clip off the portion of the difference "outside" interval.
             hitr                = iter( self.history )
@@ -166,7 +176,7 @@ class weighted( averaged ):
             offset              = 0                     # First value at 0 offset; will *always* end up > 0!
             then                = offset
             
-            self.value          = 0
+            value          = 0
             for v,t in hitr:                            # Start with second value
                 offset          = start - t
                 vclip           = v
@@ -183,14 +193,14 @@ class weighted( averaged ):
                 if dt >= 0:
                     # This value is not in reverse time order; use it
                     #print " --> " + str( vavg ) + "(" + str( vclip ) + ") * " + str( dt ),
-                    self.value += vavg * dt
+                    value      += vavg * dt
                     last        = v
                     then        = offset
             
-            #print " == " + str( self.value ) + " / " + str( offset ),
-            self.value         /= offset
-            #print " == " + str( self.value )
-            return self.value
+            #print " == " + str( value ) + " / " + str( offset ),
+            value         /= offset
+            #print " == " + str( value )
+            return value
 
 
 class weighted_linear( averaged ):
@@ -283,13 +293,13 @@ class weighted_linear( averaged ):
                     # This value is not in reverse time order; and is at least partially within the
                     # interval; use it
                     
-                    print " --> " + str( v ) + " * " + str( dt ),
+                    #print " --> " + str( v ) + " * " + str( dt ),
                     value      += v * dt
                     then        = offset
             
-            print " == " + str( value ) + " / " + str( offset ),
+            #print " == " + str( value ) + " / " + str( offset ),
             value              /= offset
-            print " == " + str( value )
+            #print " == " + str( value )
             return value
 
 

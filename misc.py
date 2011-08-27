@@ -137,18 +137,26 @@ class value( object ):
                 self.sample( value, now )
 
     def sample( self,
-               value            = None,
+               rhs              = None,
                now              = None ):
         """
         The default sample method simply assigns the given value and time.  If no new value is
         provided, the existing one is retained (eg. if used to just advance the 'now' time)
         """
+        if isinstance( rhs, value ):
+            # Another misc.value, then we'll compute its current value relative to the timestamp
+            # we're given (if None; obtain from other value, holding its lock for consistency)
+            with rhs.lock:
+                if now is None:
+                    now         = rhs.now
+                rhs		= rhs.compute( now=now )
+        # Now, update ourself with the (possibly computed) value and time
         if  now is None:
             now                 = timer()
         with self.lock:
             self.now            = now
-            if value is not None:
-                self.value      = value
+            if rhs is not None:
+                self.value      = rhs
 
     def compute( self,
                  now            = None ):
