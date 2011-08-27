@@ -10,11 +10,9 @@ __date__                                = "$Date: 2008-09-07 16:29:06 -0600 (Sun
 __copyright__                           = "Copyright (c) 2006 Perry Kundert"
 __license__                             = "GNU General Public License, Version 3 (or later)"
 
-import time
 import misc
 import math
 import collections
-
 
 # 
 # averaged              -- Simple average over total specified time period
@@ -36,21 +34,23 @@ class averaged( misc.value ):
     def __init__( self,
                   interval,
                   value         = 0,
-                  now           = None ):
+                  now           = None,
+                  lock          = misc.value.NoOpRLock()):
 
         self.interval           = interval
         self.history            = collections.deque()
 
         # Initial sample
-        misc.value.__init__( self, value, now )
+        misc.value.__init__( self, value, now, lock )
 
     def purge( self ):
         """
         Discard outdated samples.  May empty history.
         """
-        deadline                = self.now - self.interval
-        while len( self.history ) > 0 and self.history[-1][1] <= deadline:
-            self.history.pop()
+        with self.lock:
+            deadline                = self.now - self.interval
+            while len( self.history ) > 0 and self.history[-1][1] <= deadline:
+                self.history.pop()
 
     def compute( self ):
         """
@@ -58,12 +58,14 @@ class averaged( misc.value ):
         never be so long as a sample is added after purge is invoked.  Returns value (without
         recomputing if history is empty).
         """
-        if self.history:
-            self.value          = 0
-            for v,t in self.history:
-                self.value     += v
-            self.value         /= len( self.history )
-        return self.value
+        with self.lock:
+            value               = self.value
+            if self.history:
+                value           = 0
+                for v,t in self.history:
+                    value      += v
+                value          /= len( self.history )
+        return value
 
     def sample( self,
                 value           = None,
@@ -72,27 +74,35 @@ class averaged( misc.value ):
         Add sample, and re-compute value (simple average, only values within interval).  Should be
         usable without change for derived classes that use this history mechanism, if derived
         classes implement appropriate purge and/or compute methods.  Returns newly computed result.
-        If no value given, uses last value (may raise IndexError exception).
+        If None value provided, uses last value (may raise IndexError exception).
         """
         if isinstance( value, misc.value ):
-            value               = value.value
-            if now is None:
-                now             = value.now
+            with value.lock:
+                # Another misc.value; hold its lock to ensure consistent value/now.  NOTE we do NOT
+                # hold multiple locks!
+                value           = value.value
+                if now is None:
+                    now         = value.now
         else:
+            # No lock required; single value, atomic access
             if value is None:
                 value           = self.history[0][0]
             if now is None:
-                now             = time.time()
+                now             = misc.timer()
 
-        # Reject simple duplicates, so py.test works (calls multiple
-        # times on assertion failures, expects no side effects)
+        # Reject simple duplicates, so py.test works (calls multiple times on assertion failures,
+        # expects no side effects).  No lock required; self.history is not allowed to disappear, and 
+        # tuples are immutable
         if self.history and self.history[0] == ( value, now ):
             return self.value
 
-        self.now                = now
-        self.purge()
-        self.history.appendleft( ( value, now ) )
-        return self.compute()
+        # Lock required to ensure consistent multi-step update
+        with self.lock:
+            self.now            = now
+            self.purge()
+            self.history.appendleft( ( value, now ) )
+            self.value = self.compute()
+            return self.value
 
 
 class weighted( averaged ):
@@ -107,8 +117,9 @@ class weighted( averaged ):
     def __init__( self,
                   interval,
                   value         = 0,
-                  now           = None ):
-        averaged.__init__( self, interval, value, now )
+                  now           = None,
+                  lock          = averaged.NoOpRLock()):
+        averaged.__init__( self, interval, value, now, lock )
         
     def purge( self ):
         """
@@ -116,12 +127,14 @@ class weighted( averaged ):
         The timestamp of the last value in self.history defines the duration used in computing the
         average, if less than self.interval.  Entries must be in ascending timestamp order.
         """
-        deadline                = self.now - self.interval
-        while len( self.history ) > 1 and self.history[-2][1] <= deadline:
-            # Second-last value is still at or outside window; discard the last one
-            self.history.pop()
+        with self.lock:
+            deadline            = self.now - self.interval
+            while len( self.history ) > 1 and self.history[-2][1] <= deadline:
+                # Second-last value is still at or outside window; discard the last one
+                self.history.pop()
 
-    def compute( self ):
+    def compute( self,
+                 now           = None ):
         """
         Time-weighted average.  Oldest value (outside interval window) only used for portion
         of interval where no in-window value is available.
@@ -138,43 +151,46 @@ class weighted( averaged ):
         # 
         # If no history is available (no samples), then return value unchanged.  This should be
         # None, if that was what was supplied at initialization.
-        if len( self.history ) < 2 or self.history[0][1] == self.history[-1][1]:
-            if self.history:
-                # Single value, or 0 interval
-                self.value      = self.history[0][0]
+        with self.lock:
+            if now is None:
+                now             = self.now
+            if len( self.history ) < 2 or self.history[0][1] == self.history[-1][1]:
+                if self.history:
+                    # Single value, or 0 interval
+                    self.value      = self.history[0][0]
+                return self.value
+            
+            # We have at least 2 samples; clip off the portion of the difference "outside" interval.
+            hitr                = iter( self.history )
+            last, start         = hitr.next()
+            offset              = 0                     # First value at 0 offset; will *always* end up > 0!
+            then                = offset
+            
+            self.value          = 0
+            for v,t in hitr:                            # Start with second value
+                offset          = start - t
+                vclip           = v
+                if offset > self.interval:
+                    # Clip to self.interval, linearly last --> v
+                    outside     = offset - self.interval
+                    offset      = self.interval
+                    vclip      -= last
+                    vclip       = vclip * self.interval / offset
+                    vclip      += last
+            
+                dt              = offset - then
+                vavg            = ( last + vclip ) / 2
+                if dt >= 0:
+                    # This value is not in reverse time order; use it
+                    #print " --> " + str( vavg ) + "(" + str( vclip ) + ") * " + str( dt ),
+                    self.value += vavg * dt
+                    last        = v
+                    then        = offset
+            
+            #print " == " + str( self.value ) + " / " + str( offset ),
+            self.value         /= offset
+            #print " == " + str( self.value )
             return self.value
-        
-        # We have at least 2 samples; clip off the portion of the difference "outside" interval.
-        hitr                    = iter( self.history )
-        last, start             = hitr.next()
-        offset                  = 0                                     # First value at 0 offset; will *always* end up > 0!
-        then                    = offset
-
-        self.value              = 0
-        for v,t in hitr:                                                # Start with second value
-            offset              = start - t
-            vclip               = v
-            if offset > self.interval:
-                # Clip to self.interval, linearly last --> v
-                outside         = offset - self.interval
-                offset          = self.interval
-                vclip          -= last
-                vclip           = vclip * self.interval / offset
-                vclip          += last
-
-            dt                  = offset - then
-            vavg                = ( last + vclip ) / 2
-            if dt >= 0:
-                # This value is not in reverse time order; use it
-                #print " --> " + str( vavg ) + "(" + str( vclip ) + ") * " + str( dt ),
-                self.value     += vavg * dt
-                last            = v
-                then            = offset
-
-        #print " == " + str( self.value ) + " / " + str( offset ),
-        self.value             /= offset
-        #print " == " + str( self.value )
-        return self.value
 
 
 class weighted_linear( averaged ):
@@ -184,69 +200,97 @@ class weighted_linear( averaged ):
     
     Each value is considered to persist linearly, until a new value is added with a later timestamp.
     Therefore, (perhaps surprisingly) each newly added value doesn't actually influence the result
-    'til time has "passed" (the next value is added).
+    'til time has "passed" (eg. time is advanced when the next value is added).
+
+    This form of weighted average is more what is normally expected; over the duration of the
+    interval, the result will gradually reflect more of the new sample, and less of the old.
     """
     def __init__( self,
                   interval,
                   value         = 0,
-                  now           = None ):
-        averaged.__init__( self, interval, value, now )
+                  now           = None,
+                  lock          = averaged.NoOpRLock()):
+        averaged.__init__( self, interval, value, now, lock )
         
     def purge( self ):
         """
         Discard outdated samples, leaving one that is exactly at or outside the interval window.
         """
-        deadline                = self.now - self.interval
-        while len( self.history ) > 1 and self.history[-2][1] <= deadline:
-            # Second-last value is still at or outside window; discard the last one
-            self.history.pop()
+        with self.lock:
+            deadline            = self.now - self.interval
+            while len( self.history ) > 1 and self.history[-2][1] <= deadline:
+                # Second-last value is still at or outside window; discard the last one
+                self.history.pop()
 
-    def compute( self ):
+    def compute( self,
+                 now            = None ):
         """
         Time-weighted linear average.  Oldest value (outside interval window) only used for portion
         of interval where no in-window value is available; values are considered to persist 'til a
-        newer value is supplied.
+        newer value is supplied.  If now is supplied, computes relative to that instant, instead of
+        self.now.
+
+        By considering the initial sample to be now and the most recent historical value, we can
+        avoid specially handling the first history entry.
+        
+
+        Does not alter self.value (or any other attribute), but takes the lock to ensure consistency.
         """
         # Determine either the end of the interval, or the oldest supplied value, whichever
         # is latest (highest timestamp).  Remember the oldest known value (may be outside
         # of interval, and hence just clamped its timestamp 'then' to the end of interval).
         # 
         # 
-        # v0     v1                  v2          v3
-        # |---------- interval ------------|
-        #                          then == ^
-        #                          last == v3
+        # .history entries:                   final
+        #                                   v--dt--v------3
+        #                                          |   
+        #           ------1                        |
+        #                  -----------------2      |
+        #         0                                |      
+        #         |---------- interval ------------|
+        # ^---dt--^                        then == ^
+        # now B   now A                    last == 3
+        # 
+        # If now (A) is coincident with history[0], that value will not be represented (dt == 0 in
+        # initial loop).  If now is future (B), then the initial dt will reflect the 0'th value.
         # 
         # Handles no history, returning value unchanged.
-        if len( self.history ) < 2 or self.history[0][1] == self.history[-1][1]:
-            if self.history:
-                # Single value, or 0 interval (guantees !0 final 'offset', below)
-                self.value      = self.history[0][0]
-            return self.value
-
-        # We have at least 2 samples; clip off the portion of the difference "outside" interval.
-        hitr                    = iter( self.history )
-        last, start             = hitr.next()
-        offset                  = 0                                     # First value at 0 offset; will *always* end up > 0!
-        then                    = offset
-
-        self.value              = 0
-        for v,t in hitr:                                                # Start with second value
-            offset              = start - t
-            if offset > self.interval:                                  # Clip to self.interval
-                offset          = self.interval
-            dt                  = offset - then
-            if dt >= 0:
-                # This value is not in reverse time order; use it
-                # print " --> " + str( v ) + " * " + str( dt ),
-                self.value     += v * dt
-                last            = v
-                then            = offset
-
-        # print " == " + str( self.value ) + " / " + str( offset ),
-        self.value             /= offset
-        # print " == " + str( self.value )
-        return self.value
+        with self.lock:
+            if now is None:
+                now             = self.now
+            if not self.history:
+                # No history; we only have initial value
+                return self.value
+            if not( now >= self.history[0][1]
+                    and now > self.history[-1][1] ):
+                # No net offset between now and first/last historical value; we only have single
+                # usable historical value.
+                return self.history[0][0]
+            
+            # We have at least 2 samples and a non-empty range within self.interval; clip off the
+            # portion of the difference "outside" interval.
+            start               = now
+            offset              = 0                     # First value at 0 offset; must *always* end up > 0!
+            then                = offset
+            
+            value               = 0
+            for v,t in self.history:
+                offset          = start - t
+                if offset > self.interval:              # Clip to self.interval
+                    offset      = self.interval
+                dt              = offset - then
+                if dt >= 0:
+                    # This value is not in reverse time order; and is at least partially within the
+                    # interval; use it
+                    
+                    print " --> " + str( v ) + " * " + str( dt ),
+                    value      += v * dt
+                    then        = offset
+            
+            print " == " + str( value ) + " / " + str( offset ),
+            value              /= offset
+            print " == " + str( value )
+            return value
 
 
 class level( misc.value ):
@@ -314,7 +358,8 @@ normal  0.0                o
                   limits        = None,         # Each level adds a state (0 normal, -2 lo lo, 2 hi hi, ...)
                   interval      = None,         # Time hysteresis; state change even within hysteresis
                   value         = 0,            # Initial value
-                  now           = None ):
+                  now           = None,
+                  lock          = misc.value.NoOpRLock()):
         self.normal             = normal        # The value considered in "normal" level 
         self.hysteresis         = hysteresis
         self.limits             = limits or [0] # The default with no limits is "normal" and "lo"
@@ -322,7 +367,7 @@ normal  0.0                o
         self.state              = 0
 
         # Invokes the initial sample(...)
-        misc.value.__init__( self, value, now )
+        misc.value.__init__( self, value, now, lock )
 
     def level( self ):
         return self.state
@@ -350,81 +395,83 @@ normal  0.0                o
         #          hi_sta:  1
         #          lo_sta: -1
         if isinstance( value, misc.value ):
-            value               = value.value
-            if now is None:
-                now             = value.now
+            with value.lock:
+                value               = value.value
+                if now is None:
+                    now             = value.now
         else:
             if value is None:
                 value           = self.value
             if now is None:
-                now             = time.time()
+                now             = misc.timer()
 
-        state                   = self.state
-        limits                  = sorted( self.limits )
-        
-        up                      = [ self.normal + lim + ( lim <= 0 and self.hysteresis or 0 )
+        with self.lock:
+            state               = self.state
+            limits              = sorted( self.limits )
+            
+            up                  = [ self.normal + lim + ( lim <= 0 and self.hysteresis or 0 )
                                     for lim in limits ]
-        dn                      = [ self.normal + lim - ( lim >  0 and self.hysteresis or 0 )
+            dn                  = [ self.normal + lim - ( lim >  0 and self.hysteresis or 0 )
                                     for lim in limits ]
-
-        lo_sta                  = -len( [ lim for lim in limits
+            
+            lo_sta              = -len( [ lim for lim in limits
                                          if lim <= 0 ] )
-        hi_sta                  = lo_sta + len( limits )
-        state                   = misc.clamp( state, ( lo_sta, hi_sta ))
-
-        '''
-        print "state == ", state
-        print "lo_sta == ", lo_sta
-        print "hi_sta == ", hi_sta
-        print up
-        print dn
-        '''
-
-        # Did we exit our state upwards?
-        while state < hi_sta:
-            lim = up[state - lo_sta]
-            if state < 0:
-                # Must exceed limit towards normal
-                if value >  lim:
-                    state      += 1
-                    #print "Value %s exceeds %s, moves us up, to state %s" % (
-                    #    value, lim, state )
+            hi_sta              = lo_sta + len( limits )
+            state               = misc.clamp( state, ( lo_sta, hi_sta ))
+            
+            '''
+            print "state == ", state
+            print "lo_sta == ", lo_sta
+            print "hi_sta == ", hi_sta
+            print up
+            print dn
+            '''
+            
+            # Did we exit our state upwards?
+            while state < hi_sta:
+                lim = up[state - lo_sta]
+                if state < 0:
+                    # Must exceed limit towards normal
+                    if value >  lim:
+                        state  += 1
+                        #print "Value %s exceeds %s, moves us up, to state %s" % (
+                        #    value, lim, state )
+                    else:
+                        break
                 else:
-                    break
-            else:
-                # ... only meet it away from normal
-                if value >= lim:
-                    state      += 1
-                    #print "Value %s meets   %s, moves us up, to state %s" % (
-                    #    value, lim, state )
+                    # ... only meet it away from normal
+                    if value >= lim:
+                        state  += 1
+                        #print "Value %s meets   %s, moves us up, to state %s" % (
+                        #    value, lim, state )
+                    else:
+                        break
+            # ... or downards?
+            while state > lo_sta:
+                lim = dn[state - lo_sta - 1]
+                if state > 0:
+                    if value <  lim:
+                        state  -= 1
+                        #print "Value %s exceeds %s, moves down,  to state %s" % (
+                        #    value, lim, state )
+                    else:
+                        break
                 else:
-                    break
-        # ... or downards?
-        while state > lo_sta:
-            lim = dn[state - lo_sta - 1]
-            if state > 0:
-                if value <  lim:
-                    state      -= 1
-                    #print "Value %s exceeds %s, moves down,  to state %s" % (
-                    #    value, lim, state )
-                else:
-                    break
-            else:
-                if value <= lim:
-                    state      -= 1
-                    #print "Value %s meets   %s, moves down,  to state %s" % (
-                    #    value, lim, state )
-                else:
-                    break
-
-        if ( state != self.state
-             or value > self.value + self.hysteresis
-             or value < self.value - self.hysteresis ):
-            self.value          = value
-            self.state          = state
-
-        self.now                = now
-        return self.value
+                    if value <= lim:
+                        state  -= 1
+                        #print "Value %s meets   %s, moves down,  to state %s" % (
+                        #    value, lim, state )
+                    else:
+                        break
+            
+            if ( state != self.state
+                 or value > self.value + self.hysteresis
+                 or value < self.value - self.hysteresis ):
+                self.value      = value
+                self.state      = state
+            
+            self.now            = now
+            return self.value
 
 
 # 
@@ -492,7 +539,7 @@ class filter( object ):
                   interval,                             # May be a scalar interval, or tuple/list of interval, initial value
                   now           = None ):
         if now is None:
-            now                 = time.time()
+            now                 = misc.timer()
         try:                                            # Changing will take effect after next 'add'
             self.interval       = interval[0]           # The filter window interval
             self.weighted       = interval[1]           # Latest value to pass beyond time interval window
@@ -520,7 +567,7 @@ class filter( object ):
              value,
              now                = None ):
         if now is None:
-            now                 = time.time()
+            now                 = misc.timer()
 
         # Reject simple duplicates, so py.test works (calls multiple
         # times on assertion failures, expects no side effects)

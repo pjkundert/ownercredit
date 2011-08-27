@@ -118,13 +118,29 @@ def test_averaged():
 
 # Test the (better) weighted_linear classs
 def test_weighted_linear():
+    # sample == 0. @ 90.,  interval == 10.
     w                   = filtered.weighted_linear( 10., 0., 90. )
     assert near( 0.0000, w )
+    assert near( 0.0000, w.compute( now=91. ))  # future value, single historical value
+
+    # sample == 1. @ 91.
     assert near( 0.0000, w.sample(  1.,  91. )) # 0. has interval of 1. (90. to 91.); 1.0 has no interval yet
     assert len( w.history ) == 2
+    assert near( 0.5000, w.compute( now=92. ))  # future value, two historical values
+    assert near( 0.9000, w.compute( now=100. )) #  ''
+    assert near( 1.0000, w.compute( now=101. )) #  ''
+
+    # sample == 2. @ 94.
     assert near( 0.7500, w.sample(  2.,  94. )) # 0. has interval of 1., 1. has interval of 3. (91. to 94.)
     assert len( w.history ) == 3
-    assert near( 1.5000, w.sample(  3., 100. )) # 0. x 1., 1. x 3., 2. x 6.
+
+    # sample == 3. @ 100.
+    assert near( 1.5000, w.sample(  3., 100. )) # 0. x 1.ticks, 1. x 3.t, 2. x 6.t, 3. x 0.t == 15. / 10.
+    assert near( 1.5000, w.compute( now=100. )) # future value, several historical values.  See if they drop...
+    assert near( 1.8000, w.compute( now=101. )) # 0. x 0.ticks, 1. x 3.t, 2. x 6.t, 3. x 1.t == 18. / 10.
+    assert near( 2.2000, w.compute( now=103. )) # 0. x 0.ticks, 1. x 1.t, 2. x 6.t, 3. x 3.t == 22. / 10.
+    assert near( 2.5000, w.compute( now=105. )) # 0. x 0.ticks, 1. x 0.t, 2. x 5.t, 3. x 5.t == 25. / 10.
+    assert near( 2.9000, w.compute( now=109. )) # 0. x 0.ticks, 1. x 0.t, 2. x 5.t, 3. x 5.t == 29. / 10.
 
     w                   = filtered.weighted_linear( 10., 5., 1. )
     assert near( 5.0, w )                       # Single value so far
@@ -138,6 +154,22 @@ def test_weighted_linear():
     assert near( 5.1, w.sample(  5., 13. ))     # Drops the 6. (but ...)
     assert near( 5.0, w.sample(  5., 14. ))     # Finally, only 5.'s in effect
     assert near( 5.0, w )
+
+    # Try NaN handling
+    w                   = filtered.weighted_linear( 10., math.nan, 0. )
+    assert math.isnan( w )
+    assert len( w.history ) == 0
+    assert math.isnan( w.compute( now=1. ))
+
+    assert w.sample( 999., 1. )
+    assert len( w.history ) == 1
+    assert near( 999.00, w )
+    assert near( 999.00, w.sample(  0., 2. ))
+    assert near( 499.50, w.compute( now=3. ))
+    assert near( 333.00, w.compute( now=4. ))
+    assert near(   0.00, w.compute( now=100. ))
+    assert near( 999.00, w )
+
 
 # We can simulate linear by putting ending values at the same 
 # timestamp as the next beginning value.  Uses same tests as

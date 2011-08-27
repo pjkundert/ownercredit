@@ -11,11 +11,17 @@ __copyright__                           = "Copyright (c) 2006 Perry Kundert"
 __license__                             = "GNU General Public License, Version 3 (or later)"
 
 import math
-import time
+import timeit
 
 # 
-# math.nan      -- IEEE NaN (Not a Number)
-# math.isnan    -- True iff the provided value is math.nan
+# misc.timer
+# 
+# Select platform appropriate timer function
+timer = timeit.default_timer
+
+# 
+# misc/math.nan -- IEEE NaN (Not a Number)
+# misc/math.isnan -- True iff the provided value is math.nan
 # 
 #     Augment math with some useful constants.  Note that IEEE NaN is the
 # only floating point number that won't equal itself.
@@ -77,39 +83,80 @@ def scale( val, dom, rng ):
 def magnitude( val, base = 10 ):
     return pow( base, round( math.log( val ) / math.log( base )) - 1 )
 
+
 # 
 # misc.value    -- Base class for things that should generally act like a float/int
 # 
 class value( object ):
     """
-    Acts like an integer or float in most use cases.  Use as a base
-    class for things that want to have a simple integer or float value
-    type interface for arithmetic expressions.
+    Acts like an integer or float in most use cases.  Use as a base class for things that want to
+    have a simple integer or float value type interface for arithmetic expressions.  Also handles
+    several non-values correctly:
+
+        None    If supplied
+        
+
+        math.nan
+
+    By default, uses a fake Lock which exposes acquisition semantics, but does nothing.  If uses in
+    the multithreaded environment, it is recommended that a threading.RLock be used.
+
+    Great care must be taken to ensure that only one lock is held during updates or access (ie. to
+    obtain self-consistent value and now times).  If multiples locks can ever be held during access
+    of the current value of an object, it will be possible to "deadlock" any program that ever has
+    two threads lock the same locks in opposite order.
     """
-    __slots__                   = [ 'value', 'now' ]
+    __slots__                   = [ 'value', 'now', 'lock' ]
+
+    class NoOpRLock( object ):
+        def acquire(self, *args, **kwargs):
+            pass
+        __enter__ = acquire
+        def release(self):
+            pass
+        def __exit__(self, *args, **kwargs):
+            self.release()
+
     def __init__( self,
                   value         = 0,
-                  now           = None ):
+                  now           = None,
+                  lock          = NoOpRLock()):
+        """
+        The base constructor initializes the value and time, and if a non-None value is provided,
+        uses it for the initial sample invocation.  The default is zero, but None or math.nan is
+        appropriate, if the user is prepared to handle non-numeric values until the first sample is
+        provided.
+        """
         if now is None:
-            now                 = time.time()
-        self.now                = now
-        self.value              = value
-        if value is not None:
-            self.sample( value, now )
+            now                 = timer()
+        self.lock               = lock
+        with self.lock:
+            self.now            = now
+            self.value          = value
+            if value not in (None, math.nan):
+                self.sample( value, now )
 
     def sample( self,
                value            = None,
                now              = None ):
         """
-        The default sample method simply assigns the given value and
-        time.  If no new value is provided, the existing one is
-        retained (eg. if used to just advance the 'now' time)
+        The default sample method simply assigns the given value and time.  If no new value is
+        provided, the existing one is retained (eg. if used to just advance the 'now' time)
         """
-        if value is not None:
-            self.value          = value
         if  now is None:
-            now                 = time.time()
-        self.now                = now
+            now                 = timer()
+        with self.lock:
+            self.now            = now
+            if value is not None:
+                self.value      = value
+
+    def compute( self,
+                 now            = None ):
+        """
+        Compute an updated value, relative to the specified time.  The default method just returns
+        the current value.
+        """
+        return self.value
 
     # Rich comparison
     def __eq__( self, rhs ):
@@ -149,10 +196,8 @@ class value( object ):
     def __float__( self ):
         return float( self.value )
         
-    # Arithmetic operators.  The in-place operators (+=, etc.) use the
-    # apply the rhs value as a sample; if the rhs is a misc.value,
-    # then it also knows to use the 'now' time.
-
+    # Arithmetic operators.  The in-place operators (+=, etc.) use the apply the rhs value as a
+    # sample; if the rhs is a misc.value, then it also knows to use the 'now' time.
     def __sub__( self, rhs ):
         return self.value - rhs
     def __rsub__( self, lhs ):
