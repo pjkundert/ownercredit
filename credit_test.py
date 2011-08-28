@@ -12,6 +12,7 @@ __license__                             = "GNU General Public License, Version 3
 
 # local modules
 import credit
+import filtered
 from misc import near
 
 def test_near():
@@ -71,8 +72,21 @@ def test_money_create_1():
     buck                        = credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.,
-                                                   window = 3.,  now = 0,
-                                                   antiwindup = False)
+                                                   window = 3.,  # Simple average
+                                                   now = 0)
+
+    money_create_1( buck )
+
+
+def test_money_create_1_antiwindup():
+    
+    # Test 1, w/ antiwindup (new PID loop)
+    
+    buck                        = credit.currency( '&', 'BUX',
+                                                   commodities, basket, multiplier,
+                                                   K = 0.5, damping = 3.,
+                                                   window = filtered.averaged(3., value=1.0, now=0),
+                                                   now = 0 )
 
     money_create_1( buck )
 
@@ -85,22 +99,9 @@ def test_money_create_2():
     buck                        = credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.0,
-                                                   window = ( 3., 1. ),  now = 0,
-                                                   antiwindup = False)
+                                                   window = ( 3., 1. ), # Linear weighted
+                                                   now = 0)
     money_create_2( buck)
-
-
-def test_money_create_1_antiwindup():
-    
-    # Test 1, w/ antiwindup (new PID loop)
-    
-    buck                        = credit.currency( '&', 'BUX',
-                                                   commodities, basket, multiplier,
-                                                   K = 0.5, damping = 3.,
-                                                   window = 3.,  now = 0,
-                                                   antiwindup = True)
-
-    money_create_1( buck )
 
 
 def test_money_create_2_antiwindup():
@@ -111,15 +112,14 @@ def test_money_create_2_antiwindup():
     buck                        = credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.0,
-                                                   window = ( 3., 1. ),  now = 0,
-                                                   antiwindup = True)
+                                                   window = filtered.weighted_linear( 3., value=1., now=0),
+                                                   now = 0)
     money_create_2( buck)
 
 
 
 def money_create_1( buck ):
 
-    assert buck.window == 3.
     assert near( buck.basket['beer'],   25 )
     assert buck.now()           == 0
     assert near( buck.inflation(),      1.00 )
@@ -201,7 +201,6 @@ def money_create_1( buck ):
 
 def money_create_2( buck ):
 
-    assert buck.window == ( 3., 1. )
     assert near( buck.basket['beer'],   25 )
     assert buck.now()           == 0
     assert near( buck.inflation(),      1.00 )
