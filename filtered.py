@@ -19,9 +19,13 @@ import collections
 # weighted              -- Weighted average of individual sample/time periods
 # weighted_linear       -- Simple linear weighted average of all samples within period
 # 
-#     Takes the current value and last average, and returns the new
-# average, weighted by the current value and the elapsed time.
+#     Evaluates and returns the new average, optionally weighted by the current value and the
+# elapsed time.
 # 
+#     Handles an intial value (or None, representing no samples yet).  Also handles samples of NaN,
+# indicating that a problem occured and there are no new samples available; in this case, when the
+# averaging interval expires, the result will revert to NaN.  Otherwise, it will retain the last
+# known value.
             
 class averaged( misc.value ):
     """
@@ -45,36 +49,54 @@ class averaged( misc.value ):
 
     def purge( self ):
         """
-        Discard outdated samples.  May empty history.
+        Discard outdated samples, leaving one that is exactly at or outside the interval window.
+        The timestamp of the last value in self.history defines the duration used in computing the
+        average, if less than self.interval.  Entries must be in ascending timestamp order.
         """
         with self.lock:
-            deadline                = self.now - self.interval
-            while len( self.history ) > 0 and self.history[-1][1] <= deadline:
+            deadline            = self.now - self.interval
+            while len( self.history ) > 1 and self.history[-2][1] <= deadline:
+                # Second-last value is still at or outside window; discard the last one
                 self.history.pop()
 
     def compute( self,
-                 now		= None ):
+                 now            = None ):
         """
         Return simple average of samples.  Recomputes value if history is not empty, is it will
         never be so long as a sample is added after purge is invoked.  Returns value (without
         recomputing if history is empty of relevant values.)
+
+        Simple average uses the exclusive range, to retain the idea of an integer interval value
+        only containing up to its own number of samples.  Note that our 'purge' method may retain
+        unnecessary samples, for more complex (derived) averaging methods.
         """
         with self.lock:
             if now is None:
-                now		= self.now
+                now             = self.now
             value               = 0
-            count		= 0
+            count               = 0
             for v,t in self.history:
-                if t < now + self.interval:
+                if t > now - self.interval:
+                    # sample is within (now, now-interval]; use it.
                     value      += v
+                    #print " --> + " + str( v ),
                 else:
                     break
                 count          += 1
             if count:
+                #print " == " + str( value ) + " / " + str( count ),
                 value          /= count
             else:
-                # No relevant history; return current value
-                value		= self.value
+                # No relevant history...
+                if not self.history or math.isnan( self.value ):
+                    # No history at all, or last computed value has been set to NaN; retain.
+                    #print " (no history) "
+                    value       = self.value
+                else:
+                    # We do have history, and a valid computed value.  Retain historical value.
+                    #print " (historical) "
+                    value       = self.history[0][0]
+            #print " == " + str( value )
         return value
 
     def sample( self,
@@ -92,7 +114,7 @@ class averaged( misc.value ):
             with value.lock:
                 if now is None:
                     now         = value.now
-                value		= value.compute( now=now )
+                value           = value.compute( now=now )
         else:
             # No lock required; single value, atomic access
             if value is None:
@@ -106,12 +128,22 @@ class averaged( misc.value ):
         if self.history and self.history[0] == ( value, now ):
             return self.value
 
-        # Lock required to ensure consistent multi-step update
+        # Lock required to ensure consistent multi-step update.  Updating with a NaN will update our
+        # time, but will not contaminate our history.  In other words, it will indicate a problem
+        # with the value, but when corrected, correct computation of values will resume.
         with self.lock:
             self.now            = now
             self.purge()
-            self.history.appendleft( ( value, now ) )
-            self.value 		= self.compute()
+
+            if value is None or misc.isnan( value ):
+                # A non-numeric, but allowed value.  Remember it; we may use it or overwrite it, if
+                # valid history remains to compute a more appropriate value..
+                self.value      = value
+            else:
+                # Otherwise, encode the sample in history.
+                self.history.appendleft( ( value, now ) )
+
+            self.value  = self.compute()
             return self.value
 
 
@@ -121,8 +153,12 @@ class weighted( averaged ):
     samples presented to it.  Results of adding zero or negative time-interval samples is undefined.
     
     Each pair of values defines minimum and maximum value for the area between them.  Therefore,
-    each newly added value contributes to the result, using a simple average of the two values,
-    weighted by the time between the two values vs. the total duration.
+    each newly added value contributes to the result immediately, using a simple average of the two
+    values, weighted by the time between the two values vs. the total duration.
+
+    Note that this will make the output non-continuous, over time -- adding a new sample will result
+    in large jumps in output value, because the new value influences the effective value over the
+    entire range of time between the current and previous sample!
     """
     def __init__( self,
                   interval,
@@ -131,18 +167,6 @@ class weighted( averaged ):
                   lock          = averaged.NoOpRLock()):
         averaged.__init__( self, interval, value, now, lock )
         
-    def purge( self ):
-        """
-        Discard outdated samples, leaving one that is exactly at or outside the interval window.
-        The timestamp of the last value in self.history defines the duration used in computing the
-        average, if less than self.interval.  Entries must be in ascending timestamp order.
-        """
-        with self.lock:
-            deadline            = self.now - self.interval
-            while len( self.history ) > 1 and self.history[-2][1] <= deadline:
-                # Second-last value is still at or outside window; discard the last one
-                self.history.pop()
-
     def compute( self,
                  now           = None ):
         """
@@ -164,20 +188,25 @@ class weighted( averaged ):
         with self.lock:
             if now is None:
                 now             = self.now
+            if not self.history or now - self.interval > self.history[0][1]:
+                if self.value is None or math.isnan( self.value ):
+                    # No history, or expired, and our last sample is NaN/None; retain value
+                    return self.value
             if not( now >= self.history[0][1]
                     and now > self.history[-1][1] ):
                 # No net offset between now and first/last historical value; we only have single
                 # usable historical value.
                 return self.history[0][0]
             
-            # We have at least 2 samples; clip off the portion of the difference "outside" interval.
-            hitr                = iter( self.history )
-            last, start         = hitr.next()
+            # We have at least one non-empty sample period; clip off the portion of the difference
+            # "outside" interval.
+            start               = now
+            last                = self.history[0][0]
             offset              = 0                     # First value at 0 offset; will *always* end up > 0!
             then                = offset
             
-            value          = 0
-            for v,t in hitr:                            # Start with second value
+            value               = 0
+            for v,t in self.history:
                 offset          = start - t
                 vclip           = v
                 if offset > self.interval:
@@ -222,16 +251,6 @@ class weighted_linear( averaged ):
                   lock          = averaged.NoOpRLock()):
         averaged.__init__( self, interval, value, now, lock )
         
-    def purge( self ):
-        """
-        Discard outdated samples, leaving one that is exactly at or outside the interval window.
-        """
-        with self.lock:
-            deadline            = self.now - self.interval
-            while len( self.history ) > 1 and self.history[-2][1] <= deadline:
-                # Second-last value is still at or outside window; discard the last one
-                self.history.pop()
-
     def compute( self,
                  now            = None ):
         """
@@ -268,13 +287,14 @@ class weighted_linear( averaged ):
         with self.lock:
             if now is None:
                 now             = self.now
-            if not self.history:
-                # No history; we only have initial value
-                return self.value
+            if not self.history or now - self.interval > self.history[0][1]:
+                if self.value is None or math.isnan( self.value ):
+                    # No history, or expired, and our last sample is NaN/None; retain value
+                    return self.value
             if not( now >= self.history[0][1]
                     and now > self.history[-1][1] ):
-                # No net offset between now and first/last historical value; we only have single
-                # usable historical value.
+                # Good value and history, but no net offset between now and first/last historical
+                # value; we only have single usable historical value.
                 return self.history[0][0]
             
             # We have at least 2 samples and a non-empty range within self.interval; clip off the

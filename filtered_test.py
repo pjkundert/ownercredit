@@ -110,9 +110,11 @@ def test_averaged():
     assert near( 5.0, a.sample(  5., 10. ))
     assert 5 == len( a.history )
     assert near( 5.25,a.sample(  5., 12. ))     # timestamps 3-12 now within interval 10; 1-2 drop off
-    assert 4 == len( a.history )
+    assert 5 == len( a.history )                #   but 1 outside interval retained
     assert near( 5.0, a.sample(  5., 13. ))     # 0 x 4, 4 x 5, 1 x 6
+    assert 5 == len( a.history )
     assert near( 5.0, a.sample(  5., 14. ))
+    assert 5 == len( a.history )
     assert near( 5.0, a )
 
 
@@ -238,6 +240,42 @@ def test_weighted_no_samples():
 
     w.sample(0.0, now=10.)
     assert near( 0.5, w )
+
+
+def test_NaN():
+    # A NaN sample should cause any of the averaged classes to .compute() NaN, after all relevant
+    # historical samples have passed out of range.
+    unit_NaN(value(value=None, now=0.)) # Try misc.value too
+    unit_NaN(filtered.averaged(10., value=None, now=0.))
+    unit_NaN(filtered.weighted_linear(10., value=None, now=0.))
+    unit_NaN(filtered.weighted(10., value=None, now=0.))
+
+def unit_NaN(w):
+
+    assert w.compute(now=1.) is None
+
+    assert near( 999., w.sample(999., now=1.))
+    value = w.sample( 0., now=2.)
+    #print value
+    if hasattr( w, 'history'):
+        assert 2 == len(w.history)
+    value = w.sample( math.nan, now=3.)
+    #print value
+    value = w.sample( math.nan, now=10.)
+    #print value
+    value = w.sample( math.nan, now=11.)
+    #print value
+    if hasattr( w, 'history' ):
+        assert isinstance( value, float ) and not math.isnan( value )
+    value = w.sample( math.nan, now=12.)
+    #print value
+    if hasattr( w, 'history') and not isinstance( w, filtered.averaged ):
+        # Simple average is not inclusive of samples at the end of the range!  The otheer (weighted)
+        # averages are inclusive (proportionally).
+        assert isinstance( value, float ) and not math.isnan( value )
+    value = w.sample( math.nan, now=13.)
+    #print value
+    assert isinstance( value, float ) and math.isnan( value )
 
 # 
 # WARNING

@@ -157,6 +157,7 @@ class value( object ):
             self.now            = now
             if rhs is not None:
                 self.value      = rhs
+        return self.value
 
     def compute( self,
                  now            = None ):
