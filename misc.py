@@ -4,11 +4,25 @@
 Miscellaneous functionality used by various other modules.
 """
 
-__author__                              = "Perry Kundert (perry@kundert.ca)"
-__version__                             = "$Revision: 45 $"
-__date__                                = "$Date: 2008-09-07 16:29:06 -0600 (Sun, 07 Sep 2008) $"
-__copyright__                           = "Copyright (c) 2006 Perry Kundert"
-__license__                             = "GNU General Public License, Version 3 (or later)"
+# This file is part of Owner Credit
+# 
+# Owner Credit is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+# 
+# Owner Credit is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Owner Credit.  If not, see <http://www.gnu.org/licenses/>.
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@kundert.ca"
+__copyright__                   = "Copyright (c) 2006 Perry Kundert"
+__license__                     = "GNU General Public License, Version 2 (or later)"
 
 import math
 import timeit
@@ -71,12 +85,12 @@ def clamp( val, lim ):
 # 
 def scale( val, dom, rng, clamped=False ):
     """Map 'val' from domain 'dom', to new range 'rng'"""
-    result 			= ( rng[0]
+    result                      = ( rng[0]
                                     + ( val    - dom[0] )
                                     * ( rng[1] - rng[0] )
                                     / ( dom[1] - dom[0] ))
     if clamped:
-        result			= clamp( result, (min(rng), max(rng)))
+        result                  = clamp( result, (min(rng), max(rng)))
     return result
 
 # 
@@ -156,7 +170,7 @@ class value( object ):
             with rhs.lock:
                 if now is None:
                     now         = rhs.now
-                rhs		= rhs.compute( now=now )
+                rhs             = rhs.compute( now=now )
         # Now, update ourself with the (possibly computed) value and time
         if  now is None:
             now                 = timer()

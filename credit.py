@@ -11,11 +11,25 @@ credit.currency -- Basic credit system currency computations
  
 """
 
-__author__                      = "Perry Kundert (perry@kundert.ca)"
-__version__                     = "$Revision: 1.2 $"
-__date__                        = "$Date: 2006/05/10 16:51:11 $"
+# This file is part of Owner Credit
+# 
+# Owner Credit is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+# 
+# Owner Credit is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with Owner Credit.  If not, see <http://www.gnu.org/licenses/>.
+
+__author__                      = "Perry Kundert"
+__email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
-__license__                     = "GNU General Public License, Version 3 (or later)"
+__license__                     = "GNU General Public License, Version 2 (or later)"
 
 import math
 
@@ -169,12 +183,12 @@ class currency( object ):
             # been changed (due to updates that used the existing timestamp), compute and store an
             # inflation sample so that these price updates appear to have been in effect *since* the
             # last timestamp.
-            total		= 0.
+            total               = 0.
             for c,u in self.basket.items():
                 total          += u * self.price[c]
             inf                 = total / self.multiplier
             if inf != self.inflation():
-                print "Updating inflation from % 7.2f to % 7.2f due to price changes for now=% 7.2f" % ( self.inflation(), inf, self.now())
+                #print "Updating inflation from % 7.2f to % 7.2f due to price changes for now=% 7.2f" % ( self.inflation(), inf, self.now())
                 self.stabilizer.process.sample( value=inf, now=self.now() )
 
         # Update current prices from supplied dictionary, and compute inflation.  We must be
