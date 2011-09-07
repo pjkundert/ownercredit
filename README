@@ -45,7 +45,7 @@ number of units of your currency:
         'bullets':    100,		# Should be enough to bag that Elk!
         }
 
-    Establish your currency.  We'll say that 100 BUX (represented, or
+    Establish your currency.  We'll say that 100 BUX (represented, of
 course, by the "antler" symbol '&'), always buys 25 beer, 50l of gas,
 and 100 rounds of ammunition for the 30.06.  Furthermore, we'll start
 off with a K (credit factor) of 0.5, we'll feed a factor of 3x the
@@ -111,8 +111,13 @@ currency( commodities, ... )	-- create a new currency
 
     damping	- A guess as to an appropriate level of in/deflation error feedback into K.
 
-    window	- How many time units we should filter (average) in/deflation over, in computing K.
-		  This will filter out anomolous pricing activity (momentary spikes, etc.)
+    window      - By default (for backward compatibility), how many time units we should filter (average)
+		  in/deflation over, in computing K.  This will filter out anomolous pricing
+		  activity (momentary spikes, etc.)  
+		  
+		  Use an instance of filtered.weighted_linear instead, eg:
+		     ..., window=filtered.weighted_linear( 2., value=1.0, now=now ), ...
+		  specifies an averaging window over 2 time units.
 
     now		- Time stamp.  Can be real time, game time, turns, etc., so long as it increases.
 
@@ -123,9 +128,29 @@ currency.update( price, now )	-- Update prices, compute inflation and K
 
     now		- An increasing time stamp of some kind
 
-    Updates the internal state of the currency.  Returns nothing.  Cannot be invoked multiple
-    times with the same timestamp.
+    Updates the internal state of the currency, computing Inflation, and 'K'.  Returns nothing.  If
+    invoked multiple times with the exact same timestamp, simply collects the prices for the next
+    update.
 
+    If you use stepwise time values (eg. "turns" or "days" vs. continuous, real-time values) for
+    'now', then you should consider how to handle times when you update prices.  When updating the
+    currency system's prices, remember to use the "current" time for 'now', which represents the
+    period during which the prices were measured. Then, advance the time to the next "future" value,
+    and perform an update (probably with no new prices), to advance the currency.  For example:
+
+        now = 12
+	bux.update( now=now )
+	#... Price changes detected sometime during "turn" 12 ...
+	bux.update( {'bullets': 26.00 / 100}, now=now )
+	# ...
+	bux.update( {'beer': 5.25 / 6}, now=now )
+
+	# ... Next turn; advance, and compute new currency value.
+	now = 13
+	bux.update( now=now )
+
+    The currency will now reflect the Inflation (and compute K) based on the commodity prices having
+    been in effect for one time period.
 
 currency.credit( basket )	-- Compute the number of credits available for a commodity basket
 

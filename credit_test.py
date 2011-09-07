@@ -73,19 +73,19 @@ def test_money_create_1():
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.,
                                                    window = 3.,  # Simple average
-                                                   now = 0)
+                                                   now = 0 )
 
     money_create_1( buck )
 
 
-def test_money_create_1_antiwindup():
+def test_money_create_1_averaged():
     
-    # Test 1, w/ antiwindup (new PID loop)
+    # Test 1, w/ explicit filtered.averaged window
     
     buck                        = credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.,
-                                                   window = filtered.averaged(3., value=1.0, now=0),
+                                                   window = filtered.averaged(3., value=1.0, now=0 ),
                                                    now = 0 )
 
     money_create_1( buck )
@@ -100,26 +100,30 @@ def test_money_create_2():
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.0,
                                                    window = ( 3., 1. ), # Linear weighted
-                                                   now = 0)
-    money_create_2( buck)
+                                                   now = 0 )
+    money_create_2( buck )
 
 
-def test_money_create_2_antiwindup():
+def test_money_create_2_weighted_linear():
 
-    # Now, try the same test, but with time-weighted filtering over 3. time units,
+    # Now, try the same test, but with explicit time-weighted linear filtering over 3. time units,
     # beginning with an initial value of 1. for Inflation.
 
     buck                        = credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.0,
-                                                   window = filtered.weighted_linear( 3., value=1., now=0),
-                                                   now = 0)
-    money_create_2( buck)
+                                                   window = filtered.weighted_linear( 3., value=1., now=0 ),
+                                                   now = 0 )
+    money_create_2( buck )
 
 
 
 def money_create_1( buck ):
 
+    # Test credit based on an "averaged" window, that assumes prices existed at an average of the
+    # old and new price, during each time period.  This gives immediate feedback on price changes,
+    # but does not really represent reality -- we usually mean prices to change at a specific time,
+    # and not reflect some "arbitrary" period of time (since the last .update() call...)
     assert near( buck.basket['beer'],   25 )
     assert buck.now()           == 0
     assert near( buck.inflation(),      1.00 )
@@ -201,6 +205,20 @@ def money_create_1( buck ):
 
 def money_create_2( buck ):
 
+    # A currency using filtered.weighted_linear to filter inflation.  This means that a price change
+    # (and hence inflation change) at a certain time will *not* affect the output 'K' 'til time
+    # advances -- because filtered.weighted_linear doesn't reflect the latest sample value in its
+    # output *until* some time has passed (giving that new value some "weight" vs. previous values)!  
+
+    # This is, indeed the "preferred" method; it will give smoother, more realistic results.  Just ensure that
+    # you use more calls of the form:
+    # 
+    #     currency.update( {... prices }, now=currency.now() )
+    # 
+    # to update price values; these will take effect "as if" they occured at the instant of the
+    # previous time stamp.  In other words, at the beginning of the "turn".
+    # 
+
     assert near( buck.basket['beer'],   25 )
     assert buck.now()           == 0
     assert near( buck.inflation(),      1.00 )
@@ -224,12 +242,13 @@ def money_create_2( buck ):
         }, 3 )                          #   == &7.50/&100.00 inflation
 
     # The & has inflated -- the price of the commodities backing it
-    # have gone up, the value of BUX has gone down!
+    # have gone up, the value of BUX has gone down!  Note now this behaviour
+    # differs from 
 
     assert buck.now()           == 3
     assert near( buck.total,          102.50   )
     assert near( buck.inflation(),      1.0250 )
-    assert near( buck.K(),              0.5000 )        # K (will) spike down to compensate, after 
+    assert near( buck.K(),              0.5000 )        # K (will) spike down to compensate, *after* next time advance
     #                               was 0.4506 above
     stuff                       = { 'gas': 5, 'beer': 6 }
     assert near( buck.credit( stuff ),  5.4500 )        # Uh; how much can I get for this can o' gas and 6-pack?
@@ -281,13 +300,27 @@ def money_create_2( buck ):
     assert near( buck.credit( stuff ),  5.4797 )
     #                               was 5.4519 above
 
-    # We stabilize after timestamp 10, whereas the simple averaging
-    # test above stabilizes after timestamp 9, due to the fact we
-    # skipped a commodity basket sample at timestamp 2; Since the
-    # time-weighted average includes the initial (uninflated) basket
-    # sample at timestamp 1 with twice the weight (since it persisted
-    # for 2 periods), the sensation of inflation was lessened in the
-    # second time-weighted test, and hence K was driven down less
-    # aggressively (to 0.4950, vs. further down to 0.4925 in the first
-    # test).
-    # 
+    # We stabilize after timestamp 10, whereas the simple averaging test above stabilizes after
+    # timestamp 9, due to the fact we skipped a commodity basket sample at timestamp 2; Since the
+    # time-weighted average includes the initial (uninflated) basket sample at timestamp 1 with
+    # twice the weight (since it persisted for 2 periods), the sensation of inflation was lessened
+    # in the second time-weighted test, and hence K was driven down less aggressively (to 0.4950,
+    # vs. further down to 0.4925 in the first test).
+
+
+    # Now, try some price updates using existing timestamps, to illustrate updating prices "during"
+    # the previous time period.  These will act as if they had occured at the instant of the
+    # previous update, and persisted 'til the new 'now' value.
+    assert near( buck.now(),           10 )
+    buck.update( {
+            'gas':	1.10 / 1
+            }, now=buck.now() )
+    assert near( buck.now(),           10 )
+    assert near( buck.K(),              0.4950 )	# No change (same 'now' time)
+
+    buck.update( now=11 )
+
+    assert near( buck.now(),           11 )
+    assert near( buck.K(),              0.4107 )	# Those updates *are* reflected at the next turn!
+
+

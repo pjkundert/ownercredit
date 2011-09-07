@@ -122,6 +122,10 @@ class averaged( misc.value ):
             if now is None:
                 now             = misc.timer()
 
+        # We cannot allow revision of history, but multiple samples at the same instant is OK
+        if now < self.now:
+            raise ZeroDivisionError( "Invalid sample; attempting to use out-of-order 'now' time value" )
+
         # Reject simple duplicates, so py.test works (calls multiple times on assertion failures,
         # expects no side effects).  No lock required; self.history is not allowed to disappear, and 
         # tuples are immutable
@@ -143,7 +147,7 @@ class averaged( misc.value ):
                 # Otherwise, encode the sample in history.
                 self.history.appendleft( ( value, now ) )
 
-            self.value  = self.compute()
+            self.value          = self.compute()
             return self.value
 
 

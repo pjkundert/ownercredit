@@ -100,7 +100,7 @@ class currency( object ):
             # A user-supplied filtered value for filtering (moderating) inflation.  Good.
             process             = window
         elif isinstance( window, tuple ):
-            print "ownercredit.credit -- upgrade 'window=%r' (weighted linear) kyeworkd arg." % ( window, )
+            print "ownercredit.credit -- upgrade 'window=%r' (weighted linear) keyword arg." % ( window, )
             process             = filtered.weighted_linear( window[0], value = 1.0, now = now )
         else:
             print "ownercredit.credit -- upgrade 'window=%r' (simple average) keyword arg." % ( window, )
@@ -151,14 +151,31 @@ class currency( object ):
         a linear ratio of the 1-window rolling average price vs. the reference commodity basket
         price.
 
-        You may invoke multiple call to update price(s) without computing 'K' or advancing
-        'self.now()', by supplying the argument now == self.now(); it is illegal to try to move time
-        backwards.
+        You may invoke multiple call to update price(s) without computing inflation/'K' or advancing
+        'self.now()', by supplying the current time value (eg. now=<currency>.now() ); it is illegal
+        to try to move time backwards.  If you supply price updates in this way, the updated prices
+        will be applied next time an update is performed with an updated 'now' value, but using the
+        previous timestamp for the changed prices.  In other words, prices that have been updated
+        using the last timestamp will be deemed to have been changed at the instant of the last
+        update's timestamp; the prices supplied to the update will use the current timestamp.
         """
         if now is None:
             now                 = misc.timer()
         if now < self.now():
             raise Exception, "Attempt to update multiple times for previous time period"
+
+        if self.price and now > self.now():
+            # Time has advanced, and we have prices (we've been initialized).  If any prices had
+            # been changed (due to updates that used the existing timestamp), compute and store an
+            # inflation sample so that these price updates appear to have been in effect *since* the
+            # last timestamp.
+            total		= 0.
+            for c,u in self.basket.items():
+                total          += u * self.price[c]
+            inf                 = total / self.multiplier
+            if inf != self.inflation():
+                print "Updating inflation from % 7.2f to % 7.2f due to price changes for now=% 7.2f" % ( self.inflation(), inf, self.now())
+                self.stabilizer.process.sample( value=inf, now=self.now() )
 
         # Update current prices from supplied dictionary, and compute inflation.  We must be
         # supplied a price list which contains all of our currency's commodity basket!  For each
@@ -167,8 +184,9 @@ class currency( object ):
         # currency the basket represents).  This will throw an exception if a commodity isn't
         # supplied (subsequent invocations will use previous price data, if not supplied)
 
-        # Pick out and remember updated price(s), if any, for items in the currency's basket.  If
-        # time has not advanced, this was just a price update; perform no further updating.
+        # Pick out and remember updated price(s), if any, for items in the currency's basket (ignore
+        # any commodities not in the currency's basket).  If time has not advanced, this was just a
+        # price update; perform no further updating.
         for c,u in self.basket.items():
             if price and c in price:
                 self.price[c]   = price[c]
@@ -352,8 +370,8 @@ def ui( win, title = "Test" ):
 
     last                        = misc.timer()
     while 1:
-        message( win, "Quit [qy/n]?, Timewarp:% 7.2f [W/w], Increment:% 7.2f, Filter setp.:% 7.2f[S/s], value:% 7.2f[V/v]"
-                 % ( timewarp, increment, gal.stabilizer.setpoint, gal.stabilizer.process.interval ),
+        message( win, "Quit [qy/n]?, Timewarp:% 7.2f [W/w], Increment:% 7.2f, Filter Interval:% 7.2f[V/v]"
+                 % ( timewarp, increment, gal.stabilizer.process.interval ),
                  row = 0 )
         win.refresh()
         input                   = win.getch()
@@ -375,38 +393,30 @@ def ui( win, title = "Test" ):
             if chr( input ) == 'y' or chr( input ) == 'q':
                 break
 
-            if chr( input ) == 'S':
-                gal.stabilizer.set.interval += .1
-            if chr( input ) == 's':
-                gal.stabilizer.set.interval  = max( 0.1, gal.stabilizer.set.interval - .1 )
-
             if chr( input ) == 'V':
-                gal.stabilizer.inp.interval += .1
+                gal.stabilizer.process.interval += .1
             if chr( input ) == 'v':
-                gal.stabilizer.inp.interval  = max( 0.1, gal.stabilizer.set.interval - .1 )
+                gal.stabilizer.process.interval  = max( 0.1, gal.stabilizer.process.interval - .1 )
 
             if chr( input ) == 'W':
                 timewarp       += .1
             if chr( input ) == 'w':
                 timewarp        = max( 0.1, timewarp - .1 )
 
-            # Adjust Kp
             if chr( input ) == 'P':
-                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0] + .1, gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Kp      += .1
             if chr( input ) == 'p':
-                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0] - .1, gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Kp       = max( 0., gal.stabilizer.Kp - .1 )
 
-            # Adjust Ki
             if chr( input ) == 'I':
-                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1] + .1, gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Ki      += .1
             if chr( input ) == 'i':
-                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1] - .1, gal.stabilizer.Kpid[2] )
+                gal.stabilizer.Ki       = max( 0., gal.stabilizer.Ki - .1 )
 
-            # Adjust Kd
             if chr( input ) == 'D':
-                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] + .1 )
+                gal.stabilizer.Kd      += .1
             if chr( input ) == 'd':
-                gal.stabilizer.Kpid     = ( gal.stabilizer.Kpid[0], gal.stabilizer.Kpid[1], gal.stabilizer.Kpid[2] - .1 )
+                gal.stabilizer.Kd      = max( 0., gal.stabilizer.Kd - .1 )
 
             if chr( input ) == 'E':
                 price['energy'] += .01
@@ -421,11 +431,27 @@ def ui( win, title = "Test" ):
             if chr( input ) == 'a':
                 price['arrays']  = max( 0.0, price['arrays'] - .01 )
 
+        if now > gal.now():
+            # Time has advanced!  Update the galactic credit with the current commodity prices
+            gal.update( price, now=now )
+
+            data                = price.copy()
+            data['K']           = gal.K()
+            data['Inflation']   = gal.inflation()
+
+            trend.append( ( now, data ) )
+        else:
+            # Still same time period; just update current prices (in case they changed)
+            gal.update( price, now=now )
+
+        #     win, Y,           X,           [ ( x, { 'Y1': y, 'Y2': y ... } ) ]
+        plot( win, ( 0., 5.0 ), ( max( 0., now - 20 ), max( 20, now )), trend )
 
         message( win,
-                 "T%+7.2f: ([P/p]: % 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: %8.4f/% 8.4f)"
+                 "T%+7.2f: ([P/p]: % 8.4f/% 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: %8.4f/% 8.4f)"
                    % ( now - start,
                        gal.stabilizer.Kp if hasattr( gal.stabilizer, "Kp" ) else gal.stabilizer.Kpid[0],
+                       gal.stabilizer.P,
                        gal.stabilizer.Ki if hasattr( gal.stabilizer, "Ki" ) else gal.stabilizer.Kpid[1],
                        gal.stabilizer.I,
                        gal.stabilizer.Kd if hasattr( gal.stabilizer, "Kd" ) else gal.stabilizer.Kpid[2],
@@ -433,23 +459,11 @@ def ui( win, title = "Test" ):
                  row = 1 )
 
         message( win,
-                 "now:% 7.2f, K:% 7.2f" % ( gal.now(), gal.K() ),
+                 "now:% 7.2f, Inflation: % 7.2f, K:% 7.2f, " % ( gal.now(), gal.inflation(), gal.K() ),
                  row = 2 )
         message( win,
                  "In/decrease commodity values; [Aa]rrays, [Ee]nergy, [Mm]etal; see K change, 'til Inflation restored to 1.0000",
                  row = 3 )
-        if now > gal.now():
-            # Time has advanced!  Update the galactic credit with the current commodity prices
-            gal.update( price, now )
-
-            data                = price.copy()
-            data['K']           = gal.K()
-            data['Inflation']   = gal.inflation()
-
-            trend.append( ( now, data ) )
-
-        #     win, Y,           X,           [ ( x, { 'Y1': y, 'Y2': y ... } ) ]
-        plot( win, ( 0., 5.0 ), ( max( 0., now - 20 ), max( 20, now )), trend )
 
 if __name__=='__main__':
     import curses, traceback
