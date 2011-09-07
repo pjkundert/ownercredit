@@ -3,12 +3,12 @@
 # OnwerCredit GNU 'make' file
 # 
 
-VERSION		:=3.0.0
+VERSION		:=4.0.0
 
 PY=python
 PYTEST=$(PY) -m pytest --capture=no
 
-.PHONY: all clean
+.PHONY: all clean FORCE
 all:				ownercredit-$(VERSION).zip	\
 				ownercredit-$(VERSION).tgz	\
 				clean

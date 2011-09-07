@@ -51,6 +51,9 @@ def near( a, b, significance = 1.0e-4 ):
 #     Limits that are math.nan are automatically ignored, with no special code (comparisons
 # against NaN always return False).
 # 
+#     The ordering of 'lim' is assumed to be (min, max).  We don't attempt to reorder, because 'lim'
+# may contain NaN.
+# 
 def clamp( val, lim ):
     """ Limit val to between 2 (optional, if nan) limits """
     if ( val < lim[0] ):
@@ -62,15 +65,19 @@ def clamp( val, lim ):
 # 
 # scale         -- Transform a value from one range to another, without clipping
 #
-#     No math.nan allowed or zero-sized domains or ranges.  Works for either
-# increasing or decreasing ordering of domains or ranges.
+#     No math.nan allowed or zero-sized domains or ranges.  Works for either increasing or
+# decreasing ordering of domains or ranges.  If clamped, we will ensure that the rng is (re)ordered
+# appropriately.
 # 
-def scale( val, dom, rng ):
+def scale( val, dom, rng, clamped=False ):
     """Map 'val' from domain 'dom', to new range 'rng'"""
-    return ( rng[0]
-             + ( val    - dom[0] )
-             * ( rng[1] - rng[0] )
-             / ( dom[1] - dom[0] ))
+    result 			= ( rng[0]
+                                    + ( val    - dom[0] )
+                                    * ( rng[1] - rng[0] )
+                                    / ( dom[1] - dom[0] ))
+    if clamped:
+        result			= clamp( result, (min(rng), max(rng)))
+    return result
 
 # 
 # magnitude     -- Return the approximate base magnitude of the value, in 'base' ( 10 )
