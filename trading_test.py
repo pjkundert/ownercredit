@@ -29,7 +29,7 @@ def test_market_simple():
 
     print "Executing:"
     trades = list( m.execute( now=6. ))
-    #assert len( trades ) == 6
+    assert len( trades ) == 6
     for order in trades:
         print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
         if order.agent == "agent D":

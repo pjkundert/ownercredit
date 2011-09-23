@@ -177,7 +177,7 @@ class market( object ):
 
             buyer 		= self.buying[-1].agent
             seller 		= self.selling[0].agent
-            if amount == -self.buying[-1].amount:
+            if amount == self.buying[-1].amount:
                 del self.buying[-1]
             else:
                 self.buying[-1] = trade( self.buying[-1].security, self.buying[-1].price,
