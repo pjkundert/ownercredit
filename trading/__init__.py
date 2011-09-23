@@ -19,4 +19,8 @@ __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
 __license__                     = "GNU General Public License, Version 2 (or later)"
 
-__all__                         = ["credit", "trading", "alarm", "pid", "filtered", "misc"]
+# Make the classes, etc. within the major components visible
+from exchgs import *
+del  exchgs
+from actors import *
+del  actors

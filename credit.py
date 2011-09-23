@@ -257,6 +257,8 @@ class currency( object ):
 # The following are only used for testing (if the file is executed directly)
 # 
 
+           
+
 def draw( win, y, x, s ):
     """ Clip and plot, inverting y """
     rows, cols                  = win.getmaxyx()
@@ -276,14 +278,12 @@ def xform( win, trans, ry, rx, s  ):
         return
     draw( win, y + trans[0][0], x + trans[1][0], s )    # Oy, Ox
 
-def plot( win, Py, Px, trend ):
-    rows, cols                  = win.getmaxyx()
+def plot( win, rows, cols, Py, Px, trend ):
 
-    # Compute graph fixed offset, scale and zero point
-    grph = cols / 2
+   # 1/2 of screen; Compute graph fixed offset, scale and zero point
     Ox                          = 10.
     Oy                          =  5.
-    Sx                          = ( grph - Ox ) / ( Px[1] - Px[0] )
+    Sx                          = ( cols - Ox ) / ( Px[1] - Px[0] )
     Sy                          = ( rows - Oy ) / ( Py[1] - Py[0] )
     Zx                          = Px[0] * Sx
     Zy                          = Py[0] * Sx
@@ -325,8 +325,6 @@ def message( window, text, row = 23 ):
 
 def ui( win, title = "Test" ):
     # Display trends for a credit system based on several commodities
-
-    rows, cols                  = win.getmaxyx()
 
     timewarp                    = 3.0                                   # Slow down real-time by this factor
     increment                   = 1.0                                   # Process no time change increments smaller than this
@@ -401,8 +399,6 @@ def ui( win, title = "Test" ):
             last               += steps * increment * timewarp
             now                += steps * increment
 
-        rows, cols              = win.getmaxyx()
-
         if input >= 0 and input <= 255:
             if chr( input ) == 'y' or chr( input ) == 'q':
                 break
@@ -459,7 +455,8 @@ def ui( win, title = "Test" ):
             gal.update( price, now=now )
 
         #     win, Y,           X,           [ ( x, { 'Y1': y, 'Y2': y ... } ) ]
-        plot( win, ( 0., 5.0 ), ( max( 0., now - 20 ), max( 20, now )), trend )
+        rows, cols                  = win.getmaxyx()
+        plot( win, rows, cols/2, ( 0., 5.0 ), ( max( 0., now - 20 ), max( 20, now )), trend )
 
         message( win,
                  "T%+7.2f: ([P/p]: % 8.4f/% 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: %8.4f/% 8.4f)"

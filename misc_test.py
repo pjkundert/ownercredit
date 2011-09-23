@@ -3,7 +3,11 @@ from misc import *
 def test_nan():
     assert True  == isnan( float( 'nan' ))
     assert False == isnan( 1.0 )
-
+    l = [1.0, nan, 0.0]
+    l.sort( key=nan_first )
+    assert isnan( l[0] )
+    l.sort( key=nan_last )
+    assert isnan( l[-1] )
 
 def test_scale():
     assert near( scale(   0., ( 0., 100. ), ( 32., 212. )),  32. )

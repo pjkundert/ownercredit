@@ -34,11 +34,16 @@ import timeit
 timer = timeit.default_timer
 
 # 
-# misc/math.nan -- IEEE NaN (Not a Number)
-# misc/math.isnan -- True iff the provided value is math.nan
+# misc.nan	-- IEEE NaN (Not a Number)
+# misc.isnan	-- True iff the provided value is nan
+# misc.inf	-- IEEE inf (Infinity)
+# misc.isinf	-- True iff the provided value is inf
 # 
 #     Augment math with some useful constants.  Note that IEEE NaN is the
 # only floating point number that won't equal itself.
+# 
+#     Numpy has these, but we can't assume it is available.
+# 
 if hasattr( math, 'nan' ):
     nan                         = math.nan
 else:
@@ -50,6 +55,18 @@ else:
     def isnan( f ):
         return f != f
     math.isnan = isnan
+
+if hasattr( math, 'inf' ):
+    inf				= math.inf
+else:
+    inf				= float( 'inf' )
+    math.inf			= inf
+if hasattr( math, 'isinf' ):
+    isinf			= math.isinf
+else:
+    def isinf( f ):
+        return abs( f ) == inf
+    math.isinf = isinf
 
 # 
 # near          -- True iff the specified values are within 'significance' of each-other
@@ -106,6 +123,47 @@ def magnitude( val, base = 10 ):
 
 
 # 
+# sort order key=... methods
+# 
+# natural	-- Strings containing numbers sort in natural order
+# nan_first	-- NaN/None sorts lower than any number
+# nan_last	-- NaN/None sorts higher than any number
+# 
+def natural( string ):
+    '''
+    A natural sort key helper function for sort() and sorted() without
+    using regular expressions or exceptions.
+
+    >>> items = ('Z', 'a', '10th', '1st', '9')
+    >>> sorted(items)
+    ['10th', '1st', '9', 'Z', 'a']
+    >>> sorted(items, key=natural)
+    ['1st', '9', '10th', 'a', 'Z']    
+    '''
+    it = type( 1 )
+    r = []
+    for c in string:
+        if c.isdigit():
+            d = int( c )
+            if r and type( r[-1] ) == it: 
+                r[-1] = r[-1] * 10 + d
+            else: 
+                r.append( d )
+        else:
+            r.append( c.lower() )
+    return r
+
+def nan_first( number ):
+    if number is None or isnan( number ):
+        return -inf
+    return number
+
+def nan_last( number ):
+    if number is None or isnan( number ):
+        return inf
+    return number
+
+# 
 # misc.value    -- Base class for things that should generally act like a float/int
 # 
 class value( object ):
@@ -154,7 +212,7 @@ class value( object ):
         with self.lock:
             self.now            = now
             self.value          = value
-            if value not in (None, math.nan):
+            if not ( value is None or isnan( value )):
                 self.sample( value, now )
 
     def sample( self,

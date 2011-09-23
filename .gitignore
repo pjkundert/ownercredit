@@ -1,4 +1,5 @@
 *.pyc
 *~
-httpserver.log
-httpserver.pid
+*.tgz
+*.tar
+
