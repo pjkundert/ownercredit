@@ -91,12 +91,27 @@ def test_market_agent():
 
 
 def test_exchange():
-    e			= trading.exchange( "GSE" )
-    a			= []
+    """
+    Tests trading of multiple markets simultaneously.
+    """
+    GSE			= trading.exchange( "GSE" )
+    actors		= []
     needs		= []
-    needs.append( trading.need( priority=1, deadline=10.,
-                               security="energy", cycle=7, amount=10 ))
-    a.append( trading.actor( balance=1000., needs=needs, assets={"alloy":    1000} ))
-    a.append( trading.actor( balance=1000., needs=needs, assets={"arrays":   1000} ))
-    a.append( trading.actor( balance=1000., needs=needs, assets={"energy":   1000} ))
+    needs.append( trading.need( priority=1, deadline=3.,
+                               security="alloy", cycle=3, amount=4 ))
+    needs.append( trading.need( priority=1, deadline=5.,
+                               security="energy", cycle=7, amount=2 ))
+    needs.append( trading.need( priority=1, deadline=7.,
+                               security="energy", cycle=11, amount=1 ))
+                  
+    actors.append( trading.actor( balance=1000., needs=needs,
+                                  assets={"alloy":    1000}, now=0 ))
+    actors.append( trading.actor( balance=1000., needs=needs,
+                                  assets={"energy":   1000}, now=0 ))
+    actors.append( trading.actor( balance=1000., needs=needs,
+                                  assets={"arrays":   1000}, now=0 ))
 
+    for t in range(0,30):
+        for a in actors:
+            a.run( GSE, now=t )
+            GSE.execute( now=t )

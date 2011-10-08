@@ -41,12 +41,7 @@ trade = collections.namedtuple(
         'amount', 
         'agent',
         ] )
-# The sell book is ordered by reversed time, because 
-def sell_book_key( order ):
-    return ( misc.nan_first( order.price ), -order.time )
 
-def buy_book_key( order ):
-    return ( misc.nan_last( order.price ), order.time )
 
 prices = collections.namedtuple(
     'Prices', [
@@ -54,6 +49,14 @@ prices = collections.namedtuple(
         'ask',
         'last',
         ] )
+
+
+# The sell book is ordered by reversed time, because 
+def sell_book_key( order ):
+    return ( misc.nan_first( order.price ), -order.time )
+
+def buy_book_key( order ):
+    return ( misc.nan_last( order.price ), order.time )
 
 
 class market( object ):
@@ -146,7 +149,7 @@ class market( object ):
                 bid		= order.price
                 break
         ask			= 0.
-        for order in selling:
+        for order in self.selling:
             if not misc.isnan( order.price ):
                 ask		= order.price
                 break
@@ -206,9 +209,12 @@ class exchange( object ):
         self.markets		= {}
 
     def open( self, agent ):
-        return itertools.chain( map( market.open,
-                                     self.markets.items(),
-                                     itertools.repeat( agent )))
+        """
+        Yeilds all open orders for the agent, in all markets.
+        """
+        for mkt in self.markets.values():
+            for ord in mkt.open( agent ):
+                yield ord
 
     def buy( self, security, agent, amount, price, now=None, update=True ):
         if security not in self.markets:
@@ -227,11 +233,11 @@ class exchange( object ):
 
     def execute( self, now=None ):
         """
-        Invoke .execute on each market in the exchange, and return all the resultant trades.
+        Invoke .execute on each market in the exchange, and yield all the resultant trades.
         """
-        return itertools.chain( map( market.execute,
-                                     self.markets.items(),
-                                     itertools.repeat( now )))
+        for market in self.markets.values():
+            for order in market.execute( now=now ):
+                yield order
 
     def price( self, security ):
         if security in self.markets:
