@@ -102,7 +102,7 @@ def test_exchange():
     needs.append( trading.need( priority=1, deadline=5.,
                                security="energy", cycle=7, amount=2 ))
     needs.append( trading.need( priority=1, deadline=7.,
-                               security="energy", cycle=11, amount=1 ))
+                               security="arrays", cycle=11, amount=1 ))
                   
     actors.append( trading.actor( balance=1000., needs=needs,
                                   assets={"alloy":    1000}, now=0 ))
@@ -114,4 +114,6 @@ def test_exchange():
     for t in range(0,30):
         for a in actors:
             a.run( GSE, now=t )
-            GSE.execute( now=t )
+            for order in GSE.execute( now=t ):
+                order.agent.record( order )
+        logging.info( "GSE after %d:\n%s" % ( t , repr( GSE )))

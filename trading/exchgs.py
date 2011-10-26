@@ -95,6 +95,12 @@ class market( object ):
         self.lastprice		= 0.
         self.transaction	= 0
 
+    def __repr__( self ):
+        return "\n".join([
+                "%10s: %5d %10s @ %7.2f" % (
+                    order.agent.name, order.amount, order.security, order.price )
+                for order in self.buying + self.selling])
+
     def open( self, agent ):
         """
         Return all currently open trades by this agent.  All trades are returned as a single list;
@@ -157,24 +163,35 @@ class market( object ):
 
     def execute( self, now=None ):
         """
-        Yield all possible trading transactions, adjust books.  Not thread-safe.  Performs
-        market-price orders first, sorted by age.  Then, limit-price orders.  Remember that all
-        amounts in the selling book are -'ve!
+        Yield all possible trading transactions, adjust books.  Not thread-safe.
+        Performs market-price orders first, sorted by age.  Then, limit-price
+        orders.  Remember that all amounts in the selling book are -'ve!
         
         Largely from fms/fms/markets/continuousorderdriven.py
         """
         if now is None:
             now			= misc.timer()
         while ( self.buying and self.selling 
-                and self.selling[0].price <= self.buying[-1].price ):
-            # Trades available, and lowest seller at or below greatest buyer
+                and ( self.selling[0].price <= self.buying[-1].price 
+                      or misc.isnan( self.selling[0].price )
+                      or misc.isnan( self.buying[-1].price ))):
+            # Trades available, and lowest seller at or below greatest buyer (or
+            # one or both is NaN, meaning market price).
             amount 		= min( self.buying[-1].amount, -self.selling[0].amount )
             if self.buying[-1].time < self.selling[0].time:
                 # Buyer place trade before seller; buyer gets better price
                 price 		= self.selling[0].price
+                if misc.isnan( price ):
+                    price	= self.buying[-1].price
             else:
                 # Seller placed trade at/after buyer; seller gets better price
                 price 		= self.buying[-1].price
+                if misc.isnan( price ):
+                    price	= self.selling[0].price
+            if misc.isnan( price ):
+                price		= 0.
+
+            logging.info( "market %s at %7.2f" % ( self.name, price ))
             self.lastprice 	= price
             self.transaction   += 1
 
@@ -208,6 +225,9 @@ class exchange( object ):
         self.name	        = name
         self.markets		= {}
 
+    def __repr__( self ):
+        return "\n".join( (repr( m ) for m in self.markets.values()))
+        
     def open( self, agent ):
         """
         Yeilds all open orders for the agent, in all markets.
