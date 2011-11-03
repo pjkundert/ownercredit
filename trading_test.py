@@ -55,6 +55,80 @@ def test_market_simple():
             assert -100 == order.amount
     assert len( m.selling ) == 2
 
+    # Now, try some buying and selling at market price.  We have the following buy/sell books:
+    # 
+    #    Buying:
+    #       agent F:    10      grain @    3.99
+    #    Selling:
+    #       agent D:  -150      grain @    4.01
+    #       agent E:  -100      grain @    4.10
+    # 
+    # If only one of the sides of the trade is buying/selling at market, the price computation is
+    # easy; the market-price trader buys/sells at the price defined by the limit-price trade.
+    # 
+    # However, if *both* sides are trading at "market", then we need to deduce a price.  The oldest
+    # order will still get the advantage; if the seller, he gets the highest current ask price, if
+    # the buyer, he pays the lowest current bid price.  Basically, the order takes the price of of
+    # the best existing limit-price order of its type.
+
+    m.buy(  "agent G", 20, None, now=7. )
+    print "Executing market-limit buy:"
+    trades = list( m.execute( now=7. ))
+    assert len( trades ) == 2
+    for order in trades:
+        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        if order.agent == "agent G" or order.agent == "agent D":
+            assert near( 4.01, order.price )
+            assert near( 20, abs( order.amount ))
+        else:
+            assert False and "Invalid agent in trade: %s" % order.agent
+    
+    print "Buying:"
+    for order in m.buying:
+        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+    print "Selling:"
+    for order in m.selling:
+        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+
+    m.sell( "agent H", 2, None, now=8. )
+    print "Executing market-limit sell:"
+    trades = list( m.execute( now=8. ))
+    assert len( trades ) == 2
+    for order in trades:
+        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        if order.agent == "agent H" or order.agent == "agent F":
+            assert near( 3.99, order.price )
+            assert near( 2, abs( order.amount ))
+        else:
+            assert False and "Invalid agent in trade: %s" % order.agent
+
+    m.buy(  "agent I", 3, None, now=9. )
+    m.sell( "agent J", 3, None, now=10. )
+    print "Executing market-limit buy/sell (buyer wins):"
+    trades = list( m.execute( now=10. ))
+    assert len( trades ) == 2
+    for order in trades:
+        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        if order.agent == "agent I" or order.agent == "agent J":
+            assert near( 3.99, order.price )
+            assert near( 3, abs( order.amount ))
+        else:
+            assert False and "Invalid agent in trade: %s" % order.agent
+
+    m.sell( "agent K", 3, None, now=11. )
+    m.buy(  "agent L", 3, None, now=12. )
+    print "Executing market-limit buy/sell (seller wins):"
+    trades = list( m.execute( now=10. ))
+    assert len( trades ) == 2
+    for order in trades:
+        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        if order.agent == "agent K" or order.agent == "agent L":
+            assert near( 4.01, order.price )
+            assert near( 3, abs( order.amount ))
+        else:
+            assert False and "Invalid agent in trade: %s" % order.agent
+
+
 
 def test_market_agent():
     m			= trading.market("grain")
@@ -114,6 +188,6 @@ def test_exchange():
     for t in range(0,30):
         for a in actors:
             a.run( GSE, now=t )
-            for order in GSE.execute( now=t ):
-                order.agent.record( order )
+        for order in GSE.execute( now=t ):
+            order.agent.record( order )
         logging.info( "GSE after %d:\n%s" % ( t , repr( GSE )))

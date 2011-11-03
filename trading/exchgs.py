@@ -28,6 +28,7 @@ __copyright__                   = "Copyright (c) 2006 Perry Kundert"
 __license__                     = "GNU General Public License, Version 2 (or later)"
 
 import collections
+import itertools
 import logging
 
 import misc 
@@ -51,7 +52,12 @@ prices = collections.namedtuple(
         ] )
 
 
-# The sell book is ordered by reversed time, because 
+# The sell and buy order books are ordered in ascending 'price', and
+# opposite 'time' order.  This is because the first entries of the
+# sell book are used first, and the last entries of the buy book are
+# used first, and we want to ensure that entries with equal prices are
+# always consumed in ascending time-order (oldest entry first).
+
 def sell_book_key( order ):
     return ( misc.nan_first( order.price ), -order.time )
 
@@ -62,7 +68,8 @@ def buy_book_key( order ):
 class market( object ):
     """
     Implements a market for the named security.  Attempts to solve the set of trades available for
-    completion at the given moment.  The market supports fixed-price and market-price (None) bids.
+    completion at the given moment.  The market supports fixed-price (>= $0.00) and market-price
+    (None or NaN) bids.
 
     buying = [
             ("wheat", 4.05,  2.,  500, <agent B>)   # @2. A buy  of 500 bu. at $4.00
@@ -86,6 +93,7 @@ class market( object ):
         250/250 @ $4.00 from <agent A>
          50/200 @ $4.01 from <agent D>
 
+    Market-price orders are always processed before fixed-price orders.
     """
     def __init__( self, name, now=None):
         self.name 		= name
@@ -163,33 +171,58 @@ class market( object ):
 
     def execute( self, now=None ):
         """
-        Yield all possible trading transactions, adjust books.  Not thread-safe.
-        Performs market-price orders first, sorted by age.  Then, limit-price
-        orders.  Remember that all amounts in the selling book are -'ve!
+        Yield all possible trading transactions, adjust books.  Not thread-safe.  Performs
+        market-price orders first, sorted by age.  Then, limit-price orders.  Remember that all
+        amounts in the selling book are -'ve!
         
-        Largely from fms/fms/markets/continuousorderdriven.py
+        The caller must record the trades with each trade's agent, as appropriate.  Normally, this
+        would be something like (assuming 'mkt' is a market object, and the trade.agent supplied has
+        a .record method which takes a trade):
+        
+            for order in mkt.execute():
+                order.agent.record( order )
+                # ... do other stuff with the order
+
+        Largely ported from fms/fms/markets/continuousorderdriven.py, with handling for market-price
+        and limit-price bid/ask added.
         """
         if now is None:
             now			= misc.timer()
         while ( self.buying and self.selling 
-                and ( self.selling[0].price <= self.buying[-1].price 
-                      or misc.isnan( self.selling[0].price )
-                      or misc.isnan( self.buying[-1].price ))):
-            # Trades available, and lowest seller at or below greatest buyer (or
-            # one or both is NaN, meaning market price).
+                and ( self.selling[0].price is None or misc.isnan( self.selling[0].price )
+                      or self.buying[-1].price is None or misc.isnan( self.buying[-1].price )
+                      or self.selling[0].price <= self.buying[-1].price )):
+            # Trades available, and lowest seller at or below greatest buyer (or one or both is None
+            # or NaN, meaning market price).  If both buyer and seller are trading with market-price orders,
+            # then the oldest order gets the advantage; buyers
+            # If no limit-price orders exist, then no trade can be made (there is no market).
             amount 		= min( self.buying[-1].amount, -self.selling[0].amount )
+
             if self.buying[-1].time < self.selling[0].time:
                 # Buyer place trade before seller; buyer gets better price
                 price 		= self.selling[0].price
-                if misc.isnan( price ):
+                if price is None or misc.isnan( price ):
+                    # Except if it's a market-price bid; then buyer pays seller's bid price.  If
+                    # both are market price, the buyer will get the priority; the best limit-price
+                    # bid, or the best ask
                     price	= self.buying[-1].price
+                    search	= itertools.chain( reversed( self.buying ), self.selling )
             else:
                 # Seller placed trade at/after buyer; seller gets better price
                 price 		= self.buying[-1].price
-                if misc.isnan( price ):
+                if price is None or misc.isnan( price ):
+                    # Except if it's a market-price ask; then seller pays buyer's bid price
                     price	= self.selling[0].price
-            if misc.isnan( price ):
-                price		= 0.
+                    search	= itertools.chain( self.selling, reversed( self.buying ) )
+            if price is None or misc.isnan( price ):
+                # Both are market-price orders; search order gives advantage to the oldest trade
+                for order in search:
+                    if not (order.price is None or misc.isnan( order.price )):
+                        price = order.price
+                        break
+            if price is None or misc.isnan( price ):
+                # Price is *still* None/NaN: No market exists; cannot trade.
+                break
 
             logging.info( "market %s at %7.2f" % ( self.name, price ))
             self.lastprice 	= price
