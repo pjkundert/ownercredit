@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-stock 		-- Market simulation framework
+trading		-- Market trading simulation framework
   .actor	-- A basic actor in a stock market/exchange
 
 """
@@ -47,8 +47,18 @@ class actor( object ):
     """
     Each actor produces and/or requires certain amounts of commodities
     (eg. food, goods, housing, labour) per time period.  The market should reach
-    an equilibrium price for all of these, depending on their desirability (how
-    many the need it) and rarity (how many produce it).
+    an equilibrium price for all of these, depending on their desirability
+    (demand -- how many need it, and how much is needed) and rarity (supply --
+    how many produce it, and how much is produced).
+
+    Rather than directly simulating demand and supply to arrive at equilibrium
+    prices, and controlling monetary systems to reach equilibrium PPM
+    (Purchasing Power of Money), we create simple independent actors that
+    actually try to sell the commodities they produce, to build a monetary
+    balance, to fulfil their needs.  These commodities in supply and demand by
+    independent actors create marketplace price and monetary purchasing power
+    equilibrium.
+
 
     Different commodities have different levels of urgency, and will cause the
     actor to buy or sell at different prices.  For example, food must be sold at
