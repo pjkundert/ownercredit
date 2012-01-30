@@ -76,13 +76,15 @@ class averaged( misc.value ):
     def compute( self,
                  now            = None ):
         """
-        Return simple average of samples.  Recomputes value if history is not empty, is it will
-        never be so long as a sample is added after purge is invoked.  Returns value (without
-        recomputing if history is empty of relevant values.)
+        Return simple average of samples.  Recomputes value if history is not empty; it will never
+        be, so long as a sample has been added.  Returns value (without recomputing if history is
+        empty of relevant values.)
 
         Simple average uses the exclusive range, to retain the idea of an integer interval value
-        only containing up to its own number of samples.  Note that our 'purge' method may retain
-        unnecessary samples, for more complex (derived) averaging methods.
+        only containing up to its own number of samples; for example, with interval=10 and a now=10,
+        and with samples at time stamps 10, 9, ... 2, 1, 0, the computed average would only reflect
+        the latest 9 of the historical values: 10, 9, ..., 2.  Note that our 'purge' method may
+        retain unnecessary samples, for more complex (derived) averaging methods.
         """
         with self.lock:
             if now is None:

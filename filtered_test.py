@@ -241,6 +241,59 @@ def test_weighted_no_samples():
     w.sample(0.0, now=10.)
     assert near( 0.5, w )
 
+# Test how sample intervals are handled by the various averaging
+# classes, on both floating and integer samples.
+def test_intervals():
+    av_i		= filtered.averaged( interval=10, now=0 )
+    av_f		= filtered.averaged( interval=10, now=0 )
+    ws_i		= filtered.weighted( interval=10, now=0 )
+    ws_f		= filtered.weighted( interval=10, now=0 )
+    wl_i		= filtered.weighted_linear( interval=10, now=0 )
+    wl_f		= filtered.weighted_linear( interval=10, now=0 )
+    for x in xrange( 0, 11 ):
+        av_i.sample( value=100  + x, now=x )
+        av_f.sample( value=100. + x, now=x )
+        ws_i.sample( value=100  + x, now=x )
+        ws_f.sample( value=100. + x, now=x )
+        wl_i.sample( value=100  + x, now=x )
+        wl_f.sample( value=100. + x, now=x )
+    assert x == 10
+
+    # Simple averaging includes the latest sample at full weight, and
+    # discards the oldest sample as soon as it touches the end of the
+    # time span.
+    assert       105 ==  av_i.compute( now=10 )
+    assert near( 105.50, av_f.compute( now=10   )) # includes now==1, 2, 3, ... , 9, 10
+    assert near( 105.50, av_f.compute( now=10.5 )) # includes now==2, 3, ... , 9, 10
+    assert near( 106.00, av_f.compute( now=11   )) # includes now==3, ... , 9, 10
+    assert near( 106.50, av_f.sample( value=111., now=11 )) # includes now==3, ... , 9, 10, 11
+
+    # weighted includes all samples, using time weighted averaging
+    # between each: (a+b)/2.  This means that new samples added will
+    # cause a step-change jump when added (because the latest interval
+    # will jump from being deemed a flat (say) 109.0 for the time
+    # interval from 9-10, immediately to (say) 109.5 for that time
+    # interval.  This is not "smooth" as time advances, and will not
+    # be appropriate for all uses.  Remember, integer averaging always
+    # rounds down.
+    assert       104 ==  ws_i.compute( now=10   )  # includes now==1-2(101), ..., 4-5(104), 5-6(105), ..., 9-10(109)
+    assert near( 105.00, ws_f.compute( now=10   )) # includes now==1-2(101.5), 2-3(102.5), 3-4, ..., 9-10(109.5)
+    assert near( 105.475,ws_f.compute( now=10.5 )) # includes now==2-3(102.5), 3-4, ..., 9-10(109.5), 10-(110)
+    assert near( 105.95, ws_f.compute( now=11   )) # includes now==2-3(102.5), 3-4, ..., 9-10(109.5), 10-(110)
+    assert near( 106.00, ws_f.sample( value=111., now=11 )) # non-linear!
+
+    # weighted_linear doesn't include a sample with a 0 time interval
+    # (eg. the sample at now=10, with no elapsed time).  This means
+    # that new samples will have *no* immediate effect on computed
+    # average, and will smoothly begin to affect computed result as
+    # time passes.  This is probably more appropriate for smoothly
+    # changing time-based models.
+    assert       104  == wl_i.compute( now=10   )  # includes now==1, 2, 3, ... , 9
+    assert near( 104.50, wl_f.compute( now=10   )) # includes now==1-2(101.), 2-3(102.), ... , 9-10(109.)
+    assert near( 105.00, wl_f.compute( now=10.5 )) # includes now==2-3(102.), ... , 9-10(109.), 10-11(110.)
+    assert near( 105.50, wl_f.compute( now=11   )) # includes now==2-3(102.), ... , 9-10(109.), 10-11(110.)
+    assert near( 105.50, wl_f.sample( value=111., now=11 )) # smooth.
+
 
 def test_NaN():
     # A NaN sample should cause any of the averaged classes to .compute() NaN, after all relevant
