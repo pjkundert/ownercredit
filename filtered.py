@@ -189,6 +189,7 @@ class weighted( averaged ):
     in large jumps in output value, because the new value influences the effective value over the
     entire range of time between the current and previous sample!
     """
+    __slots__                   = []
     def __init__( self,
                   interval,
                   value         = 0,
@@ -282,6 +283,7 @@ class weighted_linear( averaged ):
     This form of weighted average is more what is normally expected; over the duration of the
     interval, the result will gradually reflect more of the new sample, and less of the old.
     """
+    __slots__                   = []
     def __init__( self,
                   interval,
                   value         = 0,
