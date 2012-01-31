@@ -221,7 +221,9 @@ class weighted( averaged ):
                 now             = self.now
             elif now < self.now:
                 # We cannot allow recomputation of history
-                raise ZeroDivisionError( "Invalid compute; attempting to use out-of-order 'now' time value" )
+                raise ZeroDivisionError(
+                    "Invalid compute; attempting to use out-of-order 'now=%s' time value (vs. %s)" % (
+                        str( now ), str( self.now )))
 
             if not self.history or now - self.interval > self.history[0][1]:
                 if self.value is None or math.isnan( self.value ):
@@ -328,7 +330,9 @@ class weighted_linear( averaged ):
                 now             = self.now
             elif now < self.now:
                 # We cannot allow recomputation of history
-                raise ZeroDivisionError( "Invalid compute; attempting to use out-of-order 'now' time value" )
+                raise ZeroDivisionError(
+                    "Invalid compute; attempting to use out-of-order 'now=%s' time value (vs. %s)" % (
+                        str( now ), str( self.now )))
 
             if not self.history or now - self.interval > self.history[0][1]:
                 if self.value is None or math.isnan( self.value ):
