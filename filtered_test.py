@@ -1,5 +1,6 @@
 
-from misc import *
+import misc
+from misc import near
 import filtered
 
 def test_level_int():
@@ -90,6 +91,22 @@ def test_level_float_5state():
     assert -1 == lvl.level()
 
 
+# Test that filtered.level samples a misc.value correctly, recomputing it.
+def test_level_value():
+    # Value will increase linearly from 0. to 10. over time period from 10 to 20
+    v			= filtered.weighted_linear( value=0., now=0, interval=10 )
+    v.sample( value=10., now=10 )
+
+    l			= filtered.level( value=v, normal=5., now=10 )
+
+    for t in xrange( 10, 21 ):
+        l.sample( value=v, now=t )
+        lev		= l.level()
+        #print "now==%d: value == %7.2f, lev==%d" % ( t, v.compute( now=t ), lev )
+        assert lev == 0 if t > 15 else -1
+        
+
+
 # Test the base averaged class.  Acts like a plain integer or float value, but is charged with
 # timestamped values using the .sample( value [, time ] ) method.  Implements a simple average of
 # all sample values within the time span specified at creation.
@@ -158,10 +175,10 @@ def test_weighted_linear():
     assert near( 5.0, w )
 
     # Try NaN handling
-    w                   = filtered.weighted_linear( 10., math.nan, 0. )
-    assert math.isnan( w )
+    w                   = filtered.weighted_linear( 10., misc.nan, 0. )
+    assert misc.isnan( w )
     assert len( w.history ) == 0
-    assert math.isnan( w.compute( now=1. ))
+    assert misc.isnan( w.compute( now=1. ))
 
     assert w.sample( 999., 1. )
     assert len( w.history ) == 1
@@ -242,7 +259,9 @@ def test_weighted_no_samples():
     assert near( 0.5, w )
 
 # Test how sample intervals are handled by the various averaging
-# classes, on both floating and integer samples.
+# classes, on both floating and integer samples.  Ensure that last
+# sample always continues to apply after all samples pass out of
+# interval window, and if the sample window is reduced to 0.
 def test_intervals():
     av_i		= filtered.averaged( interval=10, now=0 )
     av_f		= filtered.averaged( interval=10, now=0 )
@@ -263,10 +282,19 @@ def test_intervals():
     # discards the oldest sample as soon as it touches the end of the
     # time span.
     assert       105 ==  av_i.compute( now=10 )
+    assert 	 106 ==  av_i.sample( value=111,  now=11 )
+
     assert near( 105.50, av_f.compute( now=10   )) # includes now==1, 2, 3, ... , 9, 10
     assert near( 105.50, av_f.compute( now=10.5 )) # includes now==2, 3, ... , 9, 10
     assert near( 106.00, av_f.compute( now=11   )) # includes now==3, ... , 9, 10
     assert near( 106.50, av_f.sample( value=111., now=11 )) # includes now==3, ... , 9, 10, 11
+
+    assert near( 110.50, av_f.compute( now=19 )) # includes now==11
+    assert 	 110 ==  av_i.compute( now=19 )
+    assert near( 111.,   av_f.compute( now=20 )) # includes now==11
+    assert 	 111 ==  av_i.compute( now=20 )
+    assert near( 111.,   av_f.compute( now=21 )) # includes now==11
+    assert 	 111 ==  av_i.compute( now=21 )
 
     # weighted includes all samples, using time weighted averaging
     # between each: (a+b)/2.  This means that new samples added will
@@ -277,10 +305,19 @@ def test_intervals():
     # be appropriate for all uses.  Remember, integer averaging always
     # rounds down.
     assert       104 ==  ws_i.compute( now=10   )  # includes now==1-2(101), ..., 4-5(104), 5-6(105), ..., 9-10(109)
+    assert       105 ==  ws_i.sample( value=111,  now=11 )
+
     assert near( 105.00, ws_f.compute( now=10   )) # includes now==1-2(101.5), 2-3(102.5), 3-4, ..., 9-10(109.5)
     assert near( 105.475,ws_f.compute( now=10.5 )) # includes now==2-3(102.5), 3-4, ..., 9-10(109.5), 10-(110)
     assert near( 105.95, ws_f.compute( now=11   )) # includes now==2-3(102.5), 3-4, ..., 9-10(109.5), 10-(110)
     assert near( 106.00, ws_f.sample( value=111., now=11 )) # non-linear!
+
+    assert near( 110.80, ws_f.compute( now=19 )) # includes now==11
+    assert 	 110 ==  ws_i.compute( now=19 )
+    assert near( 110.95, ws_f.compute( now=20 )) # includes now==11
+    assert 	 110 ==  ws_i.compute( now=20 )
+    assert near( 111.,   ws_f.compute( now=21 )) # includes now==11
+    assert 	 111 ==  ws_i.compute( now=21 )
 
     # weighted_linear doesn't include a sample with a 0 time interval
     # (eg. the sample at now=10, with no elapsed time).  This means
@@ -289,16 +326,35 @@ def test_intervals():
     # time passes.  This is probably more appropriate for smoothly
     # changing time-based models.
     assert       104  == wl_i.compute( now=10   )  # includes now==1, 2, 3, ... , 9
+    assert       105 ==  wl_i.sample( value=111,  now=11 )
+
     assert near( 104.50, wl_f.compute( now=10   )) # includes now==1-2(101.), 2-3(102.), ... , 9-10(109.)
     assert near( 105.00, wl_f.compute( now=10.5 )) # includes now==2-3(102.), ... , 9-10(109.), 10-11(110.)
     assert near( 105.50, wl_f.compute( now=11   )) # includes now==2-3(102.), ... , 9-10(109.), 10-11(110.)
     assert near( 105.50, wl_f.sample( value=111., now=11 )) # smooth.
 
+    assert near( 110.70, wl_f.compute( now=19 )) # includes now==11
+    assert 	 110 ==  wl_i.compute( now=19 )
+    assert near( 110.90, wl_f.compute( now=20 )) # includes now==11
+    assert 	 110 ==  wl_i.compute( now=20 )
+    assert near( 111.,   wl_f.compute( now=21 )) # includes now==11
+    assert 	 111 ==  wl_i.compute( now=21 )
+
+    wl_f.interval = 0
+    wl_i.interval = 0
+    assert near( 111.,   wl_f.compute( now=21 )) # includes now==11
+    assert 	 111 ==  wl_i.compute( now=21 )
+
+
+
 
 def test_NaN():
-    # A NaN sample should cause any of the averaged classes to .compute() NaN, after all relevant
-    # historical samples have passed out of range.
-    unit_NaN(value(value=None, now=0.)) # Try misc.value too
+    # A NaN sample should cause any of the averaged classes to
+    # .compute() NaN, after all relevant historical samples have
+    # passed out of range.  This could be employed to indicate a
+    # failed sensor after a specific period.  Otherwise, the last
+    # known value would persist forever.
+    unit_NaN(misc.value(value=None, now=0.)) # Try misc.value too
     unit_NaN(filtered.averaged(10., value=None, now=0.))
     unit_NaN(filtered.weighted_linear(10., value=None, now=0.))
     unit_NaN(filtered.weighted(10., value=None, now=0.))
@@ -312,23 +368,23 @@ def unit_NaN(w):
     #print value
     if hasattr( w, 'history'):
         assert 2 == len(w.history)
-    value = w.sample( math.nan, now=3.)
+    value = w.sample( misc.nan, now=3.)
     #print value
-    value = w.sample( math.nan, now=10.)
+    value = w.sample( misc.nan, now=10.)
     #print value
-    value = w.sample( math.nan, now=11.)
+    value = w.sample( misc.nan, now=11.)
     #print value
     if hasattr( w, 'history' ):
-        assert isinstance( value, float ) and not math.isnan( value )
-    value = w.sample( math.nan, now=12.)
+        assert isinstance( value, float ) and not misc.isnan( value )
+    value = w.sample( misc.nan, now=12.)
     #print value
     if hasattr( w, 'history') and not isinstance( w, filtered.averaged ):
         # Simple average is not inclusive of samples at the end of the range!  The otheer (weighted)
         # averages are inclusive (proportionally).
-        assert isinstance( value, float ) and not math.isnan( value )
-    value = w.sample( math.nan, now=13.)
+        assert isinstance( value, float ) and not misc.isnan( value )
+    value = w.sample( misc.nan, now=13.)
     #print value
-    assert isinstance( value, float ) and math.isnan( value )
+    assert isinstance( value, float ) and misc.isnan( value )
 
 # 
 # WARNING

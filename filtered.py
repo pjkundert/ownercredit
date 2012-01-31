@@ -59,16 +59,19 @@ class averaged( misc.value ):
         self.history            = collections.deque()
 
         # Initial sample
-        misc.value.__init__( self, value, now, lock )
+        misc.value.__init__( self, value=value, now=now, lock=lock )
 
-    def purge( self ):
+    def purge( self,
+               now		= None ):
         """
         Discard outdated samples, leaving one that is exactly at or outside the interval window.
         The timestamp of the last value in self.history defines the duration used in computing the
         average, if less than self.interval.  Entries must be in ascending timestamp order.
         """
+        if now is None:
+            now			= self.now
         with self.lock:
-            deadline            = self.now - self.interval
+            deadline            = now - self.interval
             while len( self.history ) > 1 and self.history[-2][1] <= deadline:
                 # Second-last value is still at or outside window; discard the last one
                 self.history.pop()
@@ -122,11 +125,11 @@ class averaged( misc.value ):
         Add sample, and re-compute value (simple average, only values within interval).  Should be
         usable without change for derived classes that use this history mechanism, if derived
         classes implement appropriate purge and/or compute methods.  Returns newly computed result.
-        If None value provided, uses last value (may raise IndexError exception).
+        If None value provided, uses last value (if no samples, raises IndexError exception).
         """
         if isinstance( value, misc.value ):
-            # Another misc.value, then we'll compute its current value relative to the timestamp
-            # we're given (if None; obtain from other value, holding its lock for consistency)
+            # Another misc.value; we'll compute its current value relative to the timestamp we're
+            # given (if None; obtain from other value, holding its lock for consistency)
             with value.lock:
                 if now is None:
                     now         = value.now
@@ -142,18 +145,18 @@ class averaged( misc.value ):
         if now < self.now:
             raise ZeroDivisionError( "Invalid sample; attempting to use out-of-order 'now' time value" )
 
-        # Reject simple duplicates, so py.test works (calls multiple times on assertion failures,
+        # Reject simple duplicates, (eg. so py.test works; calls multiple times on assertion failures,
         # expects no side effects).  No lock required; self.history is not allowed to disappear, and 
         # tuples are immutable
         if self.history and self.history[0] == ( value, now ):
             return self.value
 
-        # Lock required to ensure consistent multi-step update.  Updating with a NaN will update our
-        # time, but will not contaminate our history.  In other words, it will indicate a problem
-        # with the value, but when corrected, correct computation of values will resume.
+        # Lock required to ensure consistent multi-step update.  Updating with a None/NaN will
+        # update our time (and remember the non-value), but will not contaminate our history.  In
+        # other words, it will indicate a problem with the value, but when corrected, correct
+        # computation of values will resume.
         with self.lock:
-            self.now            = now
-            self.purge()
+            self.purge( now=now )
 
             if value is None or misc.isnan( value ):
                 # A non-numeric, but allowed value.  Remember it; we may use it or overwrite it, if
@@ -163,7 +166,13 @@ class averaged( misc.value ):
                 # Otherwise, encode the sample in history.
                 self.history.appendleft( ( value, now ) )
 
-            self.value          = self.compute()
+            # We expect compute to *retain* non-values (ie. None/NaN) if no sample within interval.
+            # Otherwise, compute an appropriate value.  This is subtle; we need to remember
+            # non-values, but any legal value is basically ignored; it is just a flag that indicates
+            # (to 'compute') that it should go ahead and compute a value, perhaps based on ancient
+            # historical data.
+            self.value          = self.compute( now=now )
+            self.now            = now
             return self.value
 
 
@@ -185,7 +194,7 @@ class weighted( averaged ):
                   value         = 0,
                   now           = None,
                   lock          = averaged.NoOpRLock()):
-        averaged.__init__( self, interval, value, now, lock )
+        averaged.__init__( self, interval=interval, value=value, now=now, lock=lock )
         
     def compute( self,
                  now           = None ):
@@ -203,19 +212,28 @@ class weighted( averaged ):
         #                          then == ^
         #                          last == v3
         # 
-        # If no history is available (no samples), then return value unchanged.  This should be
-        # None, if that was what was supplied at initialization.
+        # If no history is available (no samples) or no time has passed since last sample, then
+        # returns a non-value self.value unchanged.  This should be None/NaN, if that was what was
+        # supplied at initialization.  Otherwise, compute the fresh value.
         with self.lock:
             if now is None:
                 now             = self.now
+            elif now < self.now:
+                # We cannot allow recomputation of history
+                raise ZeroDivisionError( "Invalid compute; attempting to use out-of-order 'now' time value" )
+
             if not self.history or now - self.interval > self.history[0][1]:
                 if self.value is None or math.isnan( self.value ):
                     # No history, or expired, and our last sample is NaN/None; retain value
                     return self.value
-            if not( now >= self.history[0][1]
-                    and now > self.history[-1][1] ):
-                # No net offset between now and first/last historical value; we only have single
-                # usable historical value.
+            if not ( now > self.now ):
+                # No time has passed since last sample; use last computed value
+                return self.value
+            if ( self.interval <= 0
+                 or not( now >= self.history[0][1]
+                         and now > self.history[-1][1] )):
+                # No interval, or no net offset between now and first/last historical value; we only
+                # have single usable historical value.
                 return self.history[0][0]
             
             # We have at least one non-empty sample period; clip off the portion of the difference
@@ -269,7 +287,7 @@ class weighted_linear( averaged ):
                   value         = 0,
                   now           = None,
                   lock          = averaged.NoOpRLock()):
-        averaged.__init__( self, interval, value, now, lock )
+        averaged.__init__( self, interval=interval, value=value, now=now, lock=lock )
         
     def compute( self,
                  now            = None ):
@@ -281,7 +299,6 @@ class weighted_linear( averaged ):
 
         By considering the initial sample to be now and the most recent historical value, we can
         avoid specially handling the first history entry.
-        
 
         Does not alter self.value (or any other attribute), but takes the lock to ensure consistency.
         """
@@ -307,14 +324,22 @@ class weighted_linear( averaged ):
         with self.lock:
             if now is None:
                 now             = self.now
+            elif now < self.now:
+                # We cannot allow recomputation of history
+                raise ZeroDivisionError( "Invalid compute; attempting to use out-of-order 'now' time value" )
+
             if not self.history or now - self.interval > self.history[0][1]:
                 if self.value is None or math.isnan( self.value ):
                     # No history, or expired, and our last sample is NaN/None; retain value
                     return self.value
-            if not( now >= self.history[0][1]
-                    and now > self.history[-1][1] ):
-                # Good value and history, but no net offset between now and first/last historical
-                # value; we only have single usable historical value.
+            if not ( now > self.now ):
+                # No time has passed since last sample; use last computed value
+                return self.value
+            if ( self.interval <= 0
+                 or not( now >= self.history[0][1]
+                         and now > self.history[-1][1] )):
+                # Good value and history, but no net time offset between now and first/last
+                # historical value; we only have single usable historical value.
                 return self.history[0][0]
             
             # We have at least 2 samples and a non-empty range within self.interval; clip off the
@@ -417,7 +442,7 @@ normal  0.0                o
         self.state              = 0
 
         # Invokes the initial sample(...)
-        misc.value.__init__( self, value, now, lock )
+        misc.value.__init__( self, value=value, now=now, lock=lock )
 
     def level( self ):
         return self.state
@@ -446,9 +471,9 @@ normal  0.0                o
         #          lo_sta: -1
         if isinstance( value, misc.value ):
             with value.lock:
-                value               = value.value
                 if now is None:
-                    now             = value.now
+                    now         = value.now
+                value           = value.compute( now=now )
         else:
             if value is None:
                 value           = self.value

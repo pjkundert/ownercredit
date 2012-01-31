@@ -352,12 +352,12 @@ class level( alarm ):
         one (None ==> defaults)
         """
         if args:
-            arg, args   = args[0], args[1:]
+            arg, args   	= args[0], args[1:]
         else:
-            arg         = kwargs.pop( 'level', None )
+            arg         	= kwargs.pop( 'level', None )
         super( level, self ).__init__( *args, **kwargs )
         if isinstance( arg, filtered.level ):
-            self.value  = arg
+            self.value  	= arg
         else:
             self.value          = filtered.level( **( arg and arg or {} ))
         # Memory of last-known level; external events may be driving the filtered.level, and we
@@ -390,9 +390,9 @@ class level( alarm ):
         kwargs['__depth']      += 1
 
         if args:
-            arg, args   = args[0], args[1:]
+            arg, args   	= args[0], args[1:]
         else:
-            arg         = kwargs.pop( 'level', None )
+            arg         	= kwargs.pop( 'level', None )
 
         transitions             = super( level, self ).compute( *args, **kwargs )
         for trans in transitions:
@@ -402,11 +402,11 @@ class level( alarm ):
         # Always process a sample; at the least, 'now' will advance on __depth == 0 external
         # invocations of compute()
         self.value.sample( arg, now=self.now() )
-        after           = self.value.level()
+        after           	= self.value.level()
         if after != self.before:
             #print "%s.compute -- transition on level change; was %s, now %s" % (
             #    "level", self.before, after)
-            self.before = after
+            self.before 	= after
             trans = self.transition()
             #print "%s.compute -- yielding: %s" % ( "level", trans )
             yield trans

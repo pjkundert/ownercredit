@@ -65,7 +65,7 @@ class controller( misc.value ):
                   setpoint      = 0.,                                   # Initial setpoint
                   process       = 0.,                                   #   process value
                   output        = 0.,                                   #   and output
-                  Lout          = ( math.nan, math.nan ),               # Default output limits
+                  Lout          = ( misc.nan, misc.nan ),               # Default output limits
                   now           = None ):
         """
         Given the initial PID loop constants Kpid, and setpoint, process and target output values,
@@ -122,11 +122,11 @@ class controller( misc.value ):
         dt                      = now - self.now
 
         if hasattr( self.setpoint, "sample" ):
-            self.setpoint.sample( value = setpoint, now = now )
+            self.setpoint.sample( value=setpoint, now=now )
         else:
             self.setpoint       = setpoint
         if hasattr( self.process, "sample" ):
-            self.process.sample( value = process, now = now )
+            self.process.sample( value=process, now=now )
         else:
             self.process        = process
 
@@ -142,7 +142,7 @@ class controller( misc.value ):
             # Compute tentative Output value, clamp Output to saturation limits, and perform
             # Integral anti-windup computation -- only remembering new Integral if output value not
             # clamped (or if new Integral would reduce Output clamping)!  Remember, any comparison
-            # against math.nan is False.
+            # against misc.nan is False.
             self.output         = (   P * self.Kp
                                     + I * self.Ki
                                     + D * self.Kd )
@@ -175,7 +175,7 @@ class controller( misc.value ):
             Oi                  = self.output - Op - Od
             return ( Op / self.output, Oi / self.output, Od / self.output )
         except:
-            return ( math.nan, math.nan, math.nan )
+            return ( misc.nan, misc.nan, misc.nan )
 
 
 # 
@@ -200,10 +200,10 @@ class pid:
     """
     def __init__( self,
                   Kpid          = ( 1.0, 1.0, 1.0 ),                    # PID loop constants
-                  Fset          = ( 0.0, math.nan ),                    # Filter setpoint and/or input valus over simple averaged interval
-                  Finp          = ( 0.0, math.nan ),                    #  or, (optionally) time-weighted w/ non-NaN initial value
-                  Li            = ( math.nan, math.nan ),               # Limit integral (anti-windup)
-                  Lout          = ( math.nan, math.nan ),               # Limit output (anti-saturation)
+                  Fset          = ( 0.0, misc.nan ),                    # Filter setpoint and/or input valus over simple averaged interval
+                  Finp          = ( 0.0, misc.nan ),                    #  or, (optionally) time-weighted w/ non-NaN initial value
+                  Li            = ( misc.nan, misc.nan ),               # Limit integral (anti-windup)
+                  Lout          = ( misc.nan, misc.nan ),               # Limit output (anti-saturation)
                   now           = None ):
         if now is None:
             now                 = misc.timer()
@@ -279,19 +279,19 @@ def ui( win, title = "Test" ):
     goal                        = platform + rows / 4.                  # m
 
     Kpid                        = (    5.0,      1.0,     2.0   )       # PID loop tuning
-    #Lout                       = ( math.nan, math.nan )                # No -'ve thrust available, limit +'ve? Causes integral wind-up and overshoot
+    #Lout                       = ( misc.nan, misc.nan )                # No -'ve thrust available, limit +'ve? Causes integral wind-up and overshoot
     #Lout                       = (    0.0,     50.0   )
-    #Lout                       = (    0.0,   math.nan )
+    #Lout                       = (    0.0,   misc.nan )
     #Lout                       = (    0.0,    100.0   )
     Lout                        = (    0.0,    mass * 100.0   )
 
-    Li                          = ( math.nan, math.nan )
-    #Li                         = (    0.0,   math.nan )
+    Li                          = ( misc.nan, misc.nan )
+    #Li                         = (    0.0,   misc.nan )
     #Li                         = (    0.0,    100.0   )                # error integral limits; avoiding integral loading causes uncorrected error?
     #Li                         = (    0.0,     50.0   )                # error integral limits; avoiding integral loading causes uncorrected error?
 
-    #Ly                         = ( math.nan, math.nan )                # Lauch pad height
-    Ly                          = ( platform, math.nan )                # Lauch pad height
+    #Ly                         = ( misc.nan, misc.nan )                # Lauch pad height
+    Ly                          = ( platform, misc.nan )                # Lauch pad height
 
     # Initial process value is on platform (or halfway up?)
     initial                     = platform
@@ -304,7 +304,7 @@ def ui( win, title = "Test" ):
 
     #Fset                       = ( 1.0, platform )                     # Filter setpoint?
     Fset                        = ( 0.0, initial )                      # Filter setpoint?
-    Finp                        = ( 0.0, math.nan )                     #   or input?
+    Finp                        = ( 0.0, misc.nan )                     #   or input?
 
     now                         = 0.0
     start                       = now
@@ -326,13 +326,14 @@ def ui( win, title = "Test" ):
     yC                          = initial
     tC                          = 0.
     autocntrl                   = controller( Kpid,
-                                              setpoint  = goal,
-                                              process   = initial,
+                                              setpoint  = filtered.weighted_linear( now=now, interval=0., value=goal ),
+                                              process   = filtered.weighted_linear( now=now, interval=0., value=initial ),
                                               output    = thrust,
                                               now       = start )
 
     last                        = misc.timer()
-    while 1:
+    
+    while True:
         message( win, "Quit [qy/n]?, Warp:% 7.2f [W/w], Incr:% 7.2f, Filt. Setpoint:% 7.2f[S/s], Value:% 7.2f[V/v]"
                  % ( timewarp, increment, autopilot.set.interval, autopilot.inp.interval ),
                  row = 0 )
@@ -348,64 +349,127 @@ def ui( win, title = "Test" ):
 
         rows, cols              = win.getmaxyx()
 
-        if input >= 0 and input <= 255:
-            if chr( input ) == 'y' or chr( input ) == 'q':
-                break
+        if 0 <= input <= 255 and chr( input ) in ('y', 'q'):
+            break
 
-            if chr( input ) == 'S':
-                autopilot.set.interval += .1
-            if chr( input ) == 's':
-                autopilot.set.interval -= .1
-                if autopilot.set.interval - .0999 < 0.:                 # Ensure we don't go "tiny" (eg. 0.0000000001232)
-                    autopilot.set.interval = 0.
+        # Filter PID 'setpoint' value (seconds)
+        if 0 <= input <= 255 and chr( input ) in ('S'):
+            autopilot.set.interval 	       += .1
+            autocntrl.setpoint.interval        += .1
+        if 0 <= input <= 255 and chr( input ) == 's':
+            autopilot.set.interval 	       -= .1
+            if autopilot.set.interval < .09:                 # Ensure we don't go "tiny" (eg. 0.0000000001232)
+                autopilot.set.interval 		= 0.
+            autocntrl.setpoint.interval        -= .1
+            if autocntrl.setpoint.interval < .09:
+                autocntrl.setpoint.interval 	= 0.
 
-            if chr( input ) == 'V':
-                autopilot.inp.interval += .1
-            if chr( input ) == 'v':
-                autopilot.inp.interval -= .1
+        # Filter PID 'process' value (seconds)
+        if 0 <= input <= 255 and chr( input ) == 'V':
+            autopilot.inp.interval 	       += .1
+            autocntrl.process.interval         += .1
+        if 0 <= input <= 255 and chr( input ) == 'v':
+            autopilot.inp.interval -= .1
+            if autopilot.inp.interval < .09:
+                autopilot.inp.interval 		= 0.
+            autocntrl.process.interval         -= .1
+            if autocntrl.process.interval < .09:
+                autocntrl.process.interval	= 0.
 
-            if chr( input ) == 'W':
-                timewarp       += .1
-            if chr( input ) == 'w':
-                timewarp       -= .1
+        # Lout (Output Limits) Boost and Retro-rockets.  A 2-tuple, each a NaN, or 0.0, or a +'ve value)
+        retro, boost		= Lout
+        retro			= -retro
+        if 0 <= input <= 255 and chr( input ) == 'B':
+            if misc.isnan( boost ):
+                boost		= 0.0
+            elif misc.near( boost, 0.0 ):
+                boost		= 0.1
+            else:
+                inc		= misc.magnitude( boost )
+                boost          += inc + inc / 100
+                boost          -= boost % inc
+        if 0 <= input <= 255 and chr( input ) == 'b':
+            if misc.isnan( boost ):
+                pass
+            elif misc.near( boost, 0.0 ):
+                boost		= misc.nan
+            else:
+                inc		= misc.magnitude( boost )
+                boost          -= inc - inc / 100
+                boost          -= boost % inc
+                if boost < 0.1:
+                    boost	= 0.0
 
-            if chr( input ) == 'j':
-                goal            = max(    0, goal - 1. )
-            if chr( input ) == 'k':
-                goal            = min( rows, goal + 1. )
+        if 0 <= input <= 255 and chr( input ) == 'R':
+            if misc.isnan( retro ):
+                retro	= 0.0
+            elif misc.near( retro, 0.0 ):
+                retro	= 0.1
+            else:
+                inc		= misc.magnitude( retro )
+                retro          += inc + inc / 100
+                retro          -= retro % inc
+        if 0 <= input <= 255 and chr( input ) == 'r':
+            if misc.isnan( retro ):
+                pass
+            elif misc.near( retro, 0.0 ):
+                retro		= misc.nan
+            else:
+                inc		= misc.magnitude( retro )
+                retro          -= inc - inc / 100
+                retro          -= retro % inc
+                if retro < 0.1:
+                    retro	= 0.0
 
-            # Adjust Kp
-            if chr( input) == 'P':
-                autopilot.Kpid  = ( autopilot.Kpid[0] + .1, autopilot.Kpid[1], autopilot.Kpid[2] )
-                autocntrl.Kp  += .1
-            if chr( input) == 'p':
-                autopilot.Kpid  = ( autopilot.Kpid[0] - .1, autopilot.Kpid[1], autopilot.Kpid[2] )
-                autocntrl.Kp  -= .1
+        Lout			= -retro, boost
+        autopilot.Lout		= Lout
 
-            # Adjust Ki
-            if chr( input) == 'I':
-                autopilot.Kpid  = ( autopilot.Kpid[0], autopilot.Kpid[1] + .1, autopilot.Kpid[2] )
-                autocntrl.Ki  += .1
-            if chr( input) == 'i':
-                autopilot.Kpid  = ( autopilot.Kpid[0], autopilot.Kpid[1] - .1, autopilot.Kpid[2] )
-                autocntrl.Ki  -= .1
+        # Timewarp
+        if 0 <= input <= 255 and chr( input ) == 'W':
+            timewarp           += .1
+        if 0 <= input <= 255 and chr( input ) == 'w':
+            timewarp           -= .1
 
-            # Adjust Kd
-            if chr( input) == 'D':
-                autopilot.Kpid  = ( autopilot.Kpid[0], autopilot.Kpid[1], autopilot.Kpid[2] + .1 )
-                autocntrl.Kd  += .1
-            if chr( input) == 'd':
-                autopilot.Kpid  = ( autopilot.Kpid[0], autopilot.Kpid[1], autopilot.Kpid[2] - .1 )
-                autocntrl.Kd  -= .1
+        if 0 <= input <= 255 and chr( input ) == 'j':
+            goal                = max(    0, goal - 1. )
+        if 0 <= input <= 255 and chr( input ) == 'k':
+            goal            	= min( rows, goal + 1. )
 
-            # Adjust Mass
-            if chr( input) == 'M':
-                mass           += .1
-            if chr( input) == 'm':
-                mass           -= .1
+        # Adjust PID
+        if 0 <= input <= 255 and chr( input) == 'P':
+            inc			= misc.magnitude( autocntrl.Kp )
+            autocntrl.Kp       += inc + inc / 100
+            autocntrl.Kp       -= autocntrl.Kp % inc
+        if 0 <= input <= 255 and chr( input) == 'p':
+            inc			= misc.magnitude( autocntrl.Kp )
+            autocntrl.Kp       -= inc - inc / 100
+            autocntrl.Kp       -= autocntrl.Kp % inc
+        if 0 <= input <= 255 and chr( input) == 'I':
+            inc			= misc.magnitude( autocntrl.Ki )
+            autocntrl.Ki       += inc + inc / 100
+            autocntrl.Ki       -= autocntrl.Ki % inc
+        if 0 <= input <= 255 and chr( input) == 'i':
+            inc			= misc.magnitude( autocntrl.Ki )
+            autocntrl.Ki       -= inc - inc / 100
+            autocntrl.Ki       -= autocntrl.Ki % inc
+        if 0 <= input <= 255 and chr( input) == 'D':
+            inc			= misc.magnitude( autocntrl.Kd )
+            autocntrl.Kd       += inc + inc / 100
+            autocntrl.Kd       -= autocntrl.Kd % inc
+        if 0 <= input <= 255 and chr( input) == 'd':
+            inc			= misc.magnitude( autocntrl.Kd )
+            autocntrl.Kd       -= inc - inc / 100
+            autocntrl.Kd       -= autocntrl.Kd % inc
+        autopilot.Kpid  = ( autocntrl.Kp, autocntrl.Ki, autocntrl.Kd )
+
+        # Adjust Mass
+        if 0 <= input <= 255 and chr( input ) in ('M','m'):
+            inc			= misc.magnitude( mass )
+            mass               += inc + inc / 100 if chr( input ) == 'M' else -inc - inc / 100
+            mass               -= mass % inc
 
         # Next frame of animation
-        win.clear()
+        win.erase()
             
         dt                      = now - autopilot.now                   # last computed
 
@@ -449,8 +513,8 @@ def ui( win, title = "Test" ):
                        autopilot.D ),
                  row = 1 )
         message( win,
-                 "  f: % 7.2fkg.m/s^2 (raw:% 7.2f, min:% 7.2f, max:% 7.2f, mass % 7.2fkg [M/m])"
-                 % ( thrust, autopilot.out, autopilot.Lout[0], autopilot.Lout[1], mass ),
+                 "  f: % 7.2fkg.m/s^2 (raw:% 7.2f), [M/m]ass:% 7.2fkg"
+                 % ( thrust, autopilot.out, mass ),
                  row = 2 )
         message( win,
                  "  a: % 7.2fm/s^2    (flt:% 7.2f)"
@@ -518,8 +582,8 @@ def ui( win, title = "Test" ):
                  col = cols / 2,
                  row = 1 )
         message( win,
-                 "  f: % 7.2fkg.m/s^2, mass % 7.2fkg [M/m]"
-                 % ( tC, mass ),
+                 "  f: % 7.2fkg.m/s^2, [R/r]etro:% 7.2f, [B/b]oost:% 7.2f[B/b])"
+                 % ( tC, Lout[0], Lout[1] ),
                  col = cols / 2,
                  row = 2 )
         message( win,
@@ -545,12 +609,12 @@ def ui( win, title = "Test" ):
         
         # Compute new thrust output for next time period based on current actual altitude, and new
         # goal setpoint.  This thrust will apply for the duration of the next time period.
-        tC                      = autocntrl.loop( goal, yC, now, Lout )
+        tC                      = autocntrl.loop( setpoint=goal, process=yC, Lout=Lout, now=now )
 
         # Draw rocket at newly computed altitude
         rg                      = rows - goal
-        fs                      = rows - goal   # (filtered)
-        fi                      = rows - yC     # (filtered)
+        fs                      = rows - autocntrl.setpoint.compute( now=now )
+        fi                      = rows - autocntrl.process.compute( now=now )
         ry                      = rows - yC
         rx                      = 2 * cols / 3
 

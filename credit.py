@@ -389,7 +389,7 @@ def ui( win, title = "Test" ):
         input                   = win.getch()
 
         # New frame of animation
-        win.clear()
+        win.erase()
 
         # Compute time advance, after time warp.  Advance now only by increments.
         real                    = misc.timer()

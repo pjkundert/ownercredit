@@ -118,8 +118,13 @@ def scale( val, dom, rng, clamped=False ):
 #      23 ==> 1.
 #     .23 ==>  .1
 # 
+# The magnitude shifts to the next higher value about 1/4 of the way
+# past each multiple of base.
+
 def magnitude( val, base = 10 ):
-    return pow( base, round( math.log( val ) / math.log( base )) - 1 )
+    if val <= 0:
+        return nan
+    return pow( base, round( math.log( val, base )) - 1 )
 
 
 # 
@@ -170,12 +175,7 @@ class value( object ):
     """
     Acts like an integer or float in most use cases.  Use as a base class for things that want to
     have a simple integer or float value type interface for arithmetic expressions.  Also handles
-    several non-values correctly:
-
-        None    If supplied
-        
-
-        math.nan
+    several non-values correctly: None, misc.nan.  If supplied
 
     By default, uses a fake Lock which exposes acquisition semantics, but does nothing.  If uses in
     the multithreaded environment, it is recommended that a threading.RLock be used.
@@ -216,26 +216,25 @@ class value( object ):
                 self.sample( value, now )
 
     def sample( self,
-               rhs              = None,
+               value            = None,
                now              = None ):
         """
-        The default sample method simply assigns the given value and time.  If no new value is
-        provided, the existing one is retained (eg. if used to just advance the 'now' time)
+        The default sample method simply assigns the given value and time.  The new value 
+        may be a legitimate float or int value, or a non-value (eg. None or NaN).
         """
-        if isinstance( rhs, value ):
-            # Another misc.value, then we'll compute its current value relative to the timestamp
-            # we're given (if None; obtain from other value, holding its lock for consistency)
-            with rhs.lock:
+        if isinstance( value, self.__class__ ):
+            # Another misc.value; we'll compute its current value relative to the timestamp we're
+            # given (if None; obtain from other value, holding its lock for consistency)
+            with value.lock:
                 if now is None:
-                    now         = rhs.now
-                rhs             = rhs.compute( now=now )
+                    now         = value.now
+                value           = value.compute( now=now )
         # Now, update ourself with the (possibly computed) value and time
         if  now is None:
             now                 = timer()
         with self.lock:
             self.now            = now
-            if rhs is not None:
-                self.value      = rhs
+            self.value  	= value
         return self.value
 
     def compute( self,
