@@ -218,18 +218,19 @@ class actor( object ):
 
     def check_holdings( self, exch, exclude=None ):
         """
-        Return the value of our holdings on the given exchange, beyond (or
-        below) our target levels, except those in the exclude list.
+        Return the value of our holdings beyond our target levels on
+        the given exchange, except those in the exclude list.
         """
-        excess = {}
+        excess 			= {}
         for sec, bal in self.assets.items():
-            if not exclude or sec not in exclude:
-                price	= max( exch.price( sec ))
-                if price is not None:
-                    # There is bidding on this security.  Compute the value
-                    # of our excess amount of each security we hold.
-                    excess[sec] = price * (self.assets[sec] 
-                                           - self.target.get( sec, 0 ))
+            if exclude and sec in exclude:
+                continue
+            price		= max( exch.price( sec ))
+            if price is None:
+                continue
+            # There is bidding on this security.  Compute the value of
+            # our excess amount of each security we hold.
+            excess[sec] = price * (self.assets[sec] - self.target.get( sec, 0 ))
         return excess
 
     def raise_capital( self, value, exch, exclude=None ):
@@ -237,9 +238,10 @@ class actor( object ):
         Raise cash by selling the assets (not in the exclude list) with the
         greatest excess value, at market rates!
 
-        For anything we are not currently short of, sell small amounts at high
-        prices when not in need of cash, and larger amounts at lower prices when
-        in need.  """
+        For anything we are not currently short of, sell small amounts
+        at high prices when not in need of cash, and larger amounts at
+        lower prices when in need.
+        """
         excess = {}
         logging.warning(
             "%s wants to raise an additional $%7.2f; presently has $%7.2f" % (
@@ -252,16 +254,16 @@ class actor( object ):
             # have the most excess value of, 'til we have enough.  We'll have to
             # guess approximately how many units, because we don't know exactly
             # what the sale price will be.
-            overage = (self.assets[sec] - self.target.get( sec, 0 ))
-            amount = min( int( value / excess[sec] ) + 1, overage )
-            estimate = amount * excess[sec] / overage   # units * $/unit
+            overage 		= (self.assets[sec] - self.target.get( sec, 0 ))
+            amount 		= min( int( value / excess[sec] ) + 1, overage )
+            estimate 		= amount * excess[sec] / overage   # units * $/unit
             print "Sell %d of %d excess %s (worth ~%7.2f) for about %7.2f" % (
                 amount, overage, sec, val, estimate  )
             exch.enter( trading.trade( security=sec, price=misc.nan,
                                        time=self.now, amount=-amount,
                                        agent=self ),
-                    update=True )
-            value -= estimate
+                        update=True )
+            value 	       -= estimate
             if value <= 0:
                 break
 
@@ -272,8 +274,9 @@ class actor( object ):
         With a commodity backed currency system, when the price of the
         "reference" basket of commodities representing one unit of currency is
         priced above or below its defined value, this is a signal to either sell
-        commodities to "too much" currency (ie. at inflated prices), or buy
-        commodities for "too little" money (in times of deflation).
+        commodities to "too much" currency (ie. at inflated prices, when money
+        is too cheap), or buy commodities for "too little" money (in times of
+        deflation, where money is too expensive).
 
         So, we'll use the currency's Inflation index as a signal to either
         acquire or sell commodities into the market.  Since we can't really
@@ -291,30 +294,30 @@ class actor( object ):
             }
 
         # Compute inflation.  <1.0 --> deflation (prices too low), >1.0 --> inflation
-        total = 0.
-        reference = 0.
+        total 			= 0.
+        reference 		= 0.
         for sec, bas in bases.items():
-            reference += bas
-            price = max( exch.price( sec ))
+            reference 	       += bas
+            price 		= max( exch.price( sec ))
             print "Inflation: %s @%r" % ( sec, price )
-            total += price if price is not None else 0.
-        inflation = total / reference
+            total 	       += price if price is not None else 0.
+        inflation 		= total / reference
         print "Inflation == %7.2f" % ( inflation )
 
-        buying = {}
-        selling = {}
-        open = exch.open( self )
+        buying 			= {}
+        selling 		= {}
+        open 			= exch.open( self )
         for order in open:
             if order.amount > 0:
                 buying[order.security] = order.amount
             else:
                 selling[order.security] = -order.amount
 
-        holdings = self.check_holdings( exch )
+        holdings 		= self.check_holdings( exch )
         print repr( holdings.items() )
         for sec, val in sorted( holdings.items(), key=lambda sv: -sv[1], reverse=True ):
             print "fix: %s: holds %s" % ( sec, val )
-            amount = 1
+            amount 		= 1
             if inflation < 1.0:
                 # Prices too low; buy at market!
                 exch.enter( trading.trade( security=sec, price=misc.nan,

@@ -158,13 +158,16 @@ def natural( string ):
             r.append( c.lower() )
     return r
 
+def non_value( number ):
+    return number is None or isnan( number )
+
 def nan_first( number ):
-    if number is None or isnan( number ):
+    if non_value( number ):
         return -inf
     return number
 
 def nan_last( number ):
-    if number is None or isnan( number ):
+    if non_value( number ):
         return inf
     return number
 
@@ -212,7 +215,7 @@ class value( object ):
         with self.lock:
             self.now            = now
             self.value          = value
-            if not ( value is None or isnan( value )):
+            if not non_value( value ):
                 self.sample( value, now )
 
     def sample( self,

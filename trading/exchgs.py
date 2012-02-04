@@ -159,12 +159,12 @@ class market( object ):
         """
         bid			= 0.
         for order in reversed( self.buying ):
-            if not misc.isnan( order.price ):
+            if not misc.non_value( order.price ):
                 bid		= order.price
                 break
         ask			= 0.
         for order in self.selling:
-            if not misc.isnan( order.price ):
+            if not misc.non_value( order.price ):
                 ask		= order.price
                 break
         return prices( bid, ask, self.lastprice )
@@ -189,8 +189,8 @@ class market( object ):
         if now is None:
             now			= misc.timer()
         while ( self.buying and self.selling 
-                and ( self.selling[0].price is None or misc.isnan( self.selling[0].price )
-                      or self.buying[-1].price is None or misc.isnan( self.buying[-1].price )
+                and ( misc.non_value( self.selling[0].price )
+                      or misc.non_value( self.buying[-1].price )
                       or self.selling[0].price <= self.buying[-1].price )):
             # Trades available, and lowest seller at or below greatest buyer (or one or both is None
             # or NaN, meaning market price).  If both buyer and seller are trading with market-price orders,
@@ -201,7 +201,7 @@ class market( object ):
             if self.buying[-1].time < self.selling[0].time:
                 # Buyer place trade before seller; buyer gets better price
                 price 		= self.selling[0].price
-                if price is None or misc.isnan( price ):
+                if misc.non_value( price ):
                     # Except if it's a market-price bid; then buyer pays seller's bid price.  If
                     # both are market price, the buyer will get the priority; the best limit-price
                     # bid, or the best ask
@@ -210,17 +210,17 @@ class market( object ):
             else:
                 # Seller placed trade at/after buyer; seller gets better price
                 price 		= self.buying[-1].price
-                if price is None or misc.isnan( price ):
+                if misc.non_value( price ):
                     # Except if it's a market-price ask; then seller pays buyer's bid price
                     price	= self.selling[0].price
                     search	= itertools.chain( self.selling, reversed( self.buying ) )
-            if price is None or misc.isnan( price ):
+            if misc.non_value( price ):
                 # Both are market-price orders; search order gives advantage to the oldest trade
                 for order in search:
-                    if not (order.price is None or misc.isnan( order.price )):
+                    if not misc.non_value( order.price ):
                         price = order.price
                         break
-            if price is None or misc.isnan( price ):
+            if misc.non_value( price ):
                 # Price is *still* None/NaN: No market exists; cannot trade.
                 break
 
