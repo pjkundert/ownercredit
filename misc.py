@@ -305,7 +305,7 @@ class value( object ):
         return lhs + self.value
     def __iadd__( self, rhs ):
         if isinstance( rhs, value ):
-            self.sample( self.value + rhs.value, now )
+            self.sample( self.value + rhs.value, rhs.now )
         else:
             self.sample( self.value + rhs )
         return self
