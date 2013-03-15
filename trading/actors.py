@@ -29,9 +29,9 @@ __license__                     = "GNU General Public License, Version 2 (or lat
 import collections
 import logging
 
-import misc 
+from .. import misc 
 
-import trading
+from exchgs import *
 
 need = collections.namedtuple( 
     'Need', [
@@ -191,7 +191,7 @@ class actor( object ):
                         self.name, short, n.security, offer,
                         factor, price if price else misc.nan ))
                 # Enter the trade for the required item, updating existing order
-                exch.enter( trading.trade( security=n.security, price=offer,
+                exch.enter( trade( security=n.security, price=offer,
                                            time=self.now, amount=short,
                                            agent=self ),
                             update=True )
@@ -259,7 +259,7 @@ class actor( object ):
             estimate 		= amount * excess[sec] / overage   # units * $/unit
             print "Sell %d of %d excess %s (worth ~%7.2f) for about %7.2f" % (
                 amount, overage, sec, val, estimate  )
-            exch.enter( trading.trade( security=sec, price=misc.nan,
+            exch.enter( trade( security=sec, price=misc.nan,
                                        time=self.now, amount=-amount,
                                        agent=self ),
                         update=True )
@@ -320,12 +320,12 @@ class actor( object ):
             amount 		= 1
             if inflation < 1.0:
                 # Prices too low; buy at market!
-                exch.enter( trading.trade( security=sec, price=misc.nan,
+                exch.enter( trade( security=sec, price=misc.nan,
                                            time=self.now, amount=amount,
                                            agent=self ))
             else:
                 # Prices too high; sell into the market; just a bit 
-                exch.enter( trading.trade( security=sec, price=misc.nan,
+                exch.enter( trade( security=sec, price=misc.nan,
                                            time=self.now, amount=-amount,
                                            agent=self ))
                 

@@ -31,7 +31,7 @@ import collections
 import itertools
 import logging
 
-import misc 
+from .. import misc 
 
 
 trade = collections.namedtuple( 
