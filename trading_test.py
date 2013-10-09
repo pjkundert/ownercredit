@@ -1,9 +1,13 @@
 import logging
+import math
+import random
 logging.basicConfig(level=logging.INFO)
 
-from misc import near
+from misc import near, scale
 import trading
-
+import pid
+import filtered
+import market
 
 def test_market_simple():
     m			= trading.market("grain")
@@ -128,6 +132,25 @@ def test_market_simple():
         else:
             assert False and "Invalid agent in trade: %s" % order.agent
 
+def test_market_fluctuating():
+    # Runs the market along some long-term trend.  At random times, random
+    # accelerations are added to the price change velocity.   A PID loop move
+    # the price back to the trend.
+
+    assert near(   10.00,      market.linear(    0, 1000, (10.00,1000.00)))
+    assert near(  505.00,      market.linear(  500, 1000, (10.00,1000.00)))
+    assert near( 1000.00,      market.linear( 1000, 1000, (10.00,1000.00)))
+
+    assert near(   10.00, market.exponential(    0, 1000, (10.00,1000.00)))
+    assert near(  257.50, market.exponential(  500, 1000, (10.00,1000.00)))
+    assert near( 1000.00, market.exponential( 1000, 1000, (10.00,1000.00)))
+
+    duration		= 1000
+    price_interval	= (10.00, 1000.00)
+    target		= lambda t: market.exponential( t, duration, price_interval )
+
+    assert near(  1.0, market.normalize( 10.00, target=target( 0.0 )))
+    assert near( 10.0, market.normalize( 1.00,  target=target( 0.0 ), reverse=True ))
 
 
 def test_market_agent():
