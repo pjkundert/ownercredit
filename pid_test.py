@@ -18,7 +18,7 @@ from misc import *
 # pid.pid       -- Basic test, no filtering.
 # 
 def test_pid_pid():
-    control             = pid.pid( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
+    control             = pid.pid( Kpid = ( 2.0, 1.0, 2.0 ), now = 0., initial=1.0 )
 
     assert near( control.loop( 1.0, 1.0, now = 1. ),   0.0000 )
     assert near( control.loop( 1.0, 1.0, now = 2. ),   0.0000 )
@@ -40,7 +40,7 @@ def test_pid_pid():
 # pid.controller -- Same test
 # 
 def test_pid_controller():
-    control             = pid.controller( Kpid = ( 2.0, 1.0, 2.0 ), now = 0. )
+    control             = pid.controller( Kpid = ( 2.0, 1.0, 2.0 ), setpoint=1.0, process=1.0, now = 0. )
 
     assert near( control.loop( 1.0, 1.0, now = 1. ),   0.0000 )
     assert near( control.loop( 1.0, 1.0, now = 2. ),   0.0000 )

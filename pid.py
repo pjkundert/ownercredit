@@ -121,10 +121,18 @@ class controller( misc.value ):
             Lout                = self.Lout
         dt                      = now - self.now
 
+        # Compute change in setpoint over dt; we'll reduce the rate of change
+        # derivative D by the rate of change in setpoint, dS, because changing
+        # our mind about the setpoint shouldn't result in an instantaneous large
+        # rate of change in the error over the last interval!  Always use
+        # operators to access self.setpoint, in case it's a misc.value
+        dS			= -self.setpoint
         if hasattr( self.setpoint, "sample" ):
             self.setpoint.sample( value=setpoint, now=now )
         else:
             self.setpoint       = setpoint
+        dS		       += self.setpoint
+
         if hasattr( self.process, "sample" ):
             self.process.sample( value=process, now=now )
         else:
@@ -135,7 +143,7 @@ class controller( misc.value ):
             self.now            = now
             P                   = self.setpoint - self.process          # Proportional: error between setpoint and process value
             I                   = self.I + P * dt                       # Integral:     total error under curve over time
-            D                   = ( P - self.P ) / dt                   # Derivative:   instantanous rate of change of error
+            D                   = ( P - self.P - dS ) / dt              # Derivative:   instantanous rate of change of error (net dS)
             self.P              = P                                     #               (must remember for D computation over time)
             self.D              = D                                     # (not necessary, but useful for monitoring)
 
@@ -204,10 +212,12 @@ class pid:
                   Finp          = ( 0.0, misc.nan ),                    #  or, (optionally) time-weighted w/ non-NaN initial value
                   Li            = ( misc.nan, misc.nan ),               # Limit integral (anti-windup)
                   Lout          = ( misc.nan, misc.nan ),               # Limit output (anti-saturation)
-                  now           = None ):
+                  now           = None,
+                  initial       = 0. ):
         if now is None:
             now                 = misc.timer()
 
+        self.set_prev		= initial
         self.set                = filtered.filter( Fset, now )          # Optionally time-weighted filtering w/ non-NaN initial values
         self.inp                = filtered.filter( Finp, now )
         self.out                = 0.                                    # Raw output, before clamping to Lout
@@ -241,14 +251,17 @@ class pid:
         dt                      = now - self.now
         if dt > 0:
             # New input, setpoint and error term only contribute if time has elapsed!  Get the
-            # filtered value.  Simple or time-weighted selected at construction.
+            # filtered value.  Simple or time-weighted selected at construction.  Subtract the
+            # change in setpoint for the purposes of computing rate of change derivative D.
             inp                 = self.inp.add( value, now )
-            sep                 = self.set.add( setpt, now )
-            err                 = sep - inp
+            set                 = self.set.add( setpt, now )
+            set_chng            = set - self.set_prev
+            self.set_prev	= set
+            err                 = set - inp
 
             # Avoid integral wind-up by clamping to range limits Li
             self.I              = misc.clamp( self.I + err * dt, self.Li )
-            self.D              = ( err - self.err ) / dt
+            self.D              = ( err - self.err - set_chng ) / dt
             self.err            = err
             self.now            = now
 
