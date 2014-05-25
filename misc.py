@@ -25,13 +25,20 @@ __copyright__                   = "Copyright (c) 2006 Perry Kundert"
 __license__                     = "GNU General Public License, Version 2 (or later)"
 
 import math
-import timeit
+import sys
+import time
 
 # 
 # misc.timer
 # 
 # Select platform appropriate timer function
-timer = timeit.default_timer
+# 
+if sys.platform == 'win32':
+    # On Windows, the best timer is time.clock
+    timer 			= time.clock
+else:
+    # On most other platforms the best timer is time.time
+    timer			= time.time
 
 # 
 # misc.nan	-- IEEE NaN (Not a Number)

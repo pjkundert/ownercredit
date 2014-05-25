@@ -21,6 +21,7 @@ __copyright__                   = "Copyright (c) 2006 Perry Kundert"
 __license__                     = "GNU General Public License, Version 2 (or later)"
 
 import collections
+import datetime
 import logging
 import math
 import random
@@ -28,7 +29,6 @@ import time
 
 import filtered
 import misc
-
 
 
 """
@@ -103,6 +103,9 @@ class alarm( object ):
         self._sequence          = -1    # Force initial transition
         self._severity          = 0     # Base severity (normally 0, except for testing)
         self._now               = None
+        self._leader		= kwargs.pop( 'leader', None )
+        if self._leader is None:
+            self._leader	= "%c: "
 
     def description( self ):
         return [ "seq# %d" % self.sequence(), "sev: %d" % self.severity() ]
@@ -131,15 +134,16 @@ class alarm( object ):
             self._now           = now
         return self._now
 
+    def leader( self, timestamp ):
+        return datetime.datetime.fromtimestamp( timestamp ).strftime( self._leader )
+
     def message( self ):
         """
         Return the state change notification message for this type of alarm.  Override in derived
         class to replace (or append to) the default output.
         """
-        return "%s: Seq# %5d Sev: %2d" % (
-            time.ctime( self.now() ),
-            self.sequence(),
-            self.severity() )
+        return self.leader( self.now() ) + "Seq# %5d Sev: %2d" % (
+            self.sequence(), self.severity() )
 
     # ----------------------------------------------------------------------------
     # State Transition Generator 
