@@ -31,8 +31,8 @@ import math
 import random
 import time
 
-import filtered
-import misc
+from ownercredit import filtered
+from ownercredit import misc
 
 
 """
