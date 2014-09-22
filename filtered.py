@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
+
 """
 Filtering functionality used by various other modules.
 """
@@ -24,9 +28,10 @@ __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
 __license__                     = "GNU General Public License, Version 2 (or later)"
 
-import misc
 import math
 import collections
+
+from ownercredit import misc
 
 # 
 # averaged              -- Simple average over total specified time period
@@ -78,16 +83,18 @@ class averaged( misc.value ):
 
     def compute( self,
                  now            = None ):
-        """
-        Return simple average of samples.  Recomputes value if history is not empty; it will never
+        """Return simple average of samples.  Recomputes value if history is not empty; it will never
         be, so long as a sample has been added.  Returns value (without recomputing if history is
         empty of relevant values.)
+
+        Does not attempt to retain an integer average, even if all samples are integer.
 
         Simple average uses the exclusive range, to retain the idea of an integer interval value
         only containing up to its own number of samples; for example, with interval=10 and a now=10,
         and with samples at time stamps 10, 9, ... 2, 1, 0, the computed average would only reflect
         the latest 9 of the historical values: 10, 9, ..., 2.  Note that our 'purge' method may
         retain unnecessary samples, for more complex (derived) averaging methods.
+
         """
         with self.lock:
             if now is None:
@@ -199,9 +206,9 @@ class weighted( averaged ):
         
     def compute( self,
                  now           = None ):
-        """
-        Time-weighted average.  Oldest value (outside interval window) only used for portion
-        of interval where no in-window value is available.
+        """Time-weighted average.  Oldest value (outside interval window) only used for portion of
+        interval where no in-window value is available.
+
         """
         # Determine either the end of the interval, or the oldest supplied value, whichever
         # is latest (highest timestamp).  Remember the oldest known value (may be outside
@@ -268,7 +275,7 @@ class weighted( averaged ):
                     then        = offset
             
             #print " == " + str( value ) + " / " + str( offset ),
-            value         /= offset
+            value              /= offset
             #print " == " + str( value )
             return value
 
@@ -379,7 +386,7 @@ class level( misc.value ):
     Filter the incoming values into levels. 
 
     The minimal configuration requires a normal value (and no hysteresis).  Incoming values will be
-    either normal (0) or lo (-1) state; somewhat oddly, though, a value exaclty at the limit
+    either normal (0) or lo (-1) state; somewhat oddly, though, a value exactly at the limit
     (eg. offset [0] from normal, the default) will drive us into the "lo" level!  Remember, we must
     only "meet" the limit when moving away from normal, but must "exceed" it when moving toward
     normal.
@@ -527,7 +534,7 @@ normal  0.0                o
                         #    value, lim, state )
                     else:
                         break
-            # ... or downards?
+            # ... or downwards?
             while state > lo_sta:
                 lim = dn[state - lo_sta - 1]
                 if state > 0:

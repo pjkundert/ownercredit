@@ -19,6 +19,10 @@ Miscellaneous functionality used by various other modules.
 # You should have received a copy of the GNU General Public License
 # along with Owner Credit.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 __author__                      = "Perry Kundert"
 __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
@@ -337,6 +341,28 @@ class value( object ):
             self.sample( self.value / rhs.value, rhs.now )
         else:
             self.sample( self.value / rhs )
+        return self
+
+    def __truediv__( self, rhs ):
+        return self.value / rhs
+    def __rtruediv__( self, lhs ):
+        return lhs / self.value
+    def __itruediv__( self, rhs ):
+        if isinstance( rhs, value ):
+            self.sample( self.value / rhs.value, rhs.now )
+        else:
+            self.sample( self.value / rhs )
+        return self
+
+    def __floordiv__( self, rhs ):
+        return self.value // rhs
+    def __rfloordiv__( self, lhs ):
+        return lhs // self.value
+    def __ifloordiv__( self, rhs ):
+        if isinstance( rhs, value ):
+            self.sample( self.value // rhs.value, rhs.now )
+        else:
+            self.sample( self.value // rhs )
         return self
 
     # Various mathematical operators

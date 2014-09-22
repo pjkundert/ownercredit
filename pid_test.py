@@ -4,6 +4,10 @@
 Implements tests for the pid module.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 __author__                              = "Perry Kundert (perry@kundert.ca)"
 __version__                             = "$Revision: 1.2 $"
 __date__                                = "$Date: 2006/05/10 16:51:11 $"
@@ -11,8 +15,8 @@ __copyright__                           = "Copyright (c) 2006 Perry Kundert"
 __license__                             = "GNU General Public License, Version 3 (or later)"
 
 # local modules
-import pid
-from misc import *
+from ownercredit import pid
+from ownercredit.misc import *
 
 # 
 # pid.pid       -- Basic test, no filtering.

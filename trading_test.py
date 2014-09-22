@@ -1,8 +1,12 @@
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from misc import near
-import trading
+from ownercredit.misc import near
+from ownercredit import trading
 
 
 def test_market_simple():
@@ -19,34 +23,34 @@ def test_market_simple():
     assert len( m.buying ) == 2
     assert near( 4.10, m.buying[-1].price )
 
-    print "Buying (pre-execution):"
+    print( "Buying (pre-execution):" )
     for order in m.buying:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
 
-    print "Selling (pre-execution):"
+    print( "Selling (pre-execution):" )
     for order in m.selling:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
 
-    print "Executing:"
+    print( "Executing:" )
     trades = list( m.execute( now=6. ))
     assert len( trades ) == 6
     for order in trades:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
         if order.agent == "agent D":
             assert near( 4.01, order.price )
         if order.agent == "agent A" or order.agent == "agent C":
             assert near( 4.10, order.price )
 
-    print "Buying:"
+    print( "Buying:" )
     for order in m.buying:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
         if order.agent == "agent F":
             assert 10 == order.amount
     assert len( m.buying ) == 1
         
-    print "Selling:"
+    print( "Selling:" )
     for order in m.selling:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
         if order.agent == "agent D":
             assert near( 4.01, order.price )
             assert -150 == order.amount
@@ -72,30 +76,30 @@ def test_market_simple():
     # the best existing limit-price order of its type.
 
     m.buy(  "agent G", 20, None, now=7. )
-    print "Executing market-limit buy:"
+    print( "Executing market-limit buy:" )
     trades = list( m.execute( now=7. ))
     assert len( trades ) == 2
     for order in trades:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
         if order.agent == "agent G" or order.agent == "agent D":
             assert near( 4.01, order.price )
             assert near( 20, abs( order.amount ))
         else:
             assert False and "Invalid agent in trade: %s" % order.agent
     
-    print "Buying:"
+    print( "Buying:" )
     for order in m.buying:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
-    print "Selling:"
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
+    print( "Selling:" )
     for order in m.selling:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
 
     m.sell( "agent H", 2, None, now=8. )
-    print "Executing market-limit sell:"
+    print( "Executing market-limit sell:" )
     trades = list( m.execute( now=8. ))
     assert len( trades ) == 2
     for order in trades:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
         if order.agent == "agent H" or order.agent == "agent F":
             assert near( 3.99, order.price )
             assert near( 2, abs( order.amount ))
@@ -104,11 +108,11 @@ def test_market_simple():
 
     m.buy(  "agent I", 3, None, now=9. )
     m.sell( "agent J", 3, None, now=10. )
-    print "Executing market-limit buy/sell (buyer wins):"
+    print( "Executing market-limit buy/sell (buyer wins):" )
     trades = list( m.execute( now=10. ))
     assert len( trades ) == 2
     for order in trades:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
         if order.agent == "agent I" or order.agent == "agent J":
             assert near( 3.99, order.price )
             assert near( 3, abs( order.amount ))
@@ -117,11 +121,11 @@ def test_market_simple():
 
     m.sell( "agent K", 3, None, now=11. )
     m.buy(  "agent L", 3, None, now=12. )
-    print "Executing market-limit buy/sell (seller wins):"
+    print( "Executing market-limit buy/sell (seller wins):" )
     trades = list( m.execute( now=10. ))
     assert len( trades ) == 2
     for order in trades:
-        print "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price )
+        print( "%10s: %5d %10s @ %7.2f" % ( order.agent, order.amount, order.security, order.price ))
         if order.agent == "agent K" or order.agent == "agent L":
             assert near( 4.01, order.price )
             assert near( 3, abs( order.amount ))

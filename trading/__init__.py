@@ -14,13 +14,15 @@
 # You should have received a copy of the GNU General Public License
 # along with Owner Credit.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 __author__                      = "Perry Kundert"
 __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
 __license__                     = "GNU General Public License, Version 2 (or later)"
 
 # Make the classes, etc. within the major components visible
-from exchgs import *
-del  exchgs
-from actors import *
-del  actors
+from .exchgs import *
+from .actors import *

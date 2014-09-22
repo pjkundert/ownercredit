@@ -4,6 +4,10 @@
 Implements tests for the credit module.
 """
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 __author__                              = "Perry Kundert (perry@kundert.ca)"
 __version__                             = "$Revision: 1.2 $"
 __date__                                = "$Date: 2006/05/10 16:51:11 $"
@@ -11,9 +15,9 @@ __copyright__                           = "Copyright (c) 2006 Perry Kundert"
 __license__                             = "GNU General Public License, Version 3 (or later)"
 
 # local modules
-import credit
-import filtered
-from misc import near
+from ownercredit import credit
+from ownercredit import filtered
+from ownercredit.misc import near
 
 def test_near():
     assert     near( 0.5, 0.500001 )
@@ -77,11 +81,10 @@ def test_money_create_1():
 
     money_create_1( buck )
 
-
 def test_money_create_1_averaged():
-    
+
     # Test 1, w/ explicit filtered.averaged window
-    
+
     buck                        = credit.currency( '&', 'BUX',
                                                    commodities, basket, multiplier,
                                                    K = 0.5, damping = 3.,
@@ -102,7 +105,6 @@ def test_money_create_2():
                                                    window = ( 3., 1. ), # Linear weighted
                                                    now = 0 )
     money_create_2( buck )
-
 
 def test_money_create_2_weighted_linear():
 
@@ -157,7 +159,7 @@ def money_create_1( buck ):
     assert near( buck.credit( stuff ),  4.9118 )        # Uh; how much can I get for this can o' gas and 6-pack?
 
     # Same prices next time unit!   Inflation staying...
-    ela = float( 4 ) - buck.now()
+    ela				= float( 4 ) - buck.now()
     assert near( ela,                   1 )
 
     buck.update( { }, 4 )
@@ -241,29 +243,28 @@ def money_create_2( buck ):
         'bullets':     25.00 / 100,     # same &0.00 /  100 rounds
         }, 3 )                          #   == &7.50/&100.00 inflation
 
-    # The & has inflated -- the price of the commodities backing it
-    # have gone up, the value of BUX has gone down!  Note now this behaviour
-    # differs from 
+    # The & has inflated -- the price of the commodities backing it have gone up, the value of BUX
+    # has gone down!
 
     assert buck.now()           == 3
     assert near( buck.total,          102.50   )
     assert near( buck.inflation(),      1.0250 )
-    assert near( buck.K(),              0.5000 )        # K (will) spike down to compensate, *after* next time advance
-    #                               was 0.4506 above
+    assert near( buck.K(),              0.5000 )        # K (will) spike down to compensate
+
     stuff                       = { 'gas': 5, 'beer': 6 }
     assert near( buck.credit( stuff ),  5.4500 )        # Uh; how much can I get for this can o' gas and 6-pack?
-    #                               was 4.9118 above
+
     # Same prices next time unit!   Inflation staying...
-    ela = float( 4 ) - buck.now()
+    ela				= float( 4 ) - buck.now()
     assert near( ela,                   1 )
 
     buck.update( { }, 4 )
     assert buck.now()           == 4
     assert near( buck.inflation(),      1.0250 )
     assert near( buck.K(),              0.4617 )        # infl. same, but rate of change slows, K pops back a bit
-    #                               was 0.40125above
-    assert near( buck.credit( stuff ),  5.03217 )
-    #                               was 4.3736 above
+
+    assert near( buck.credit( stuff ),  5.0322 )
+
     # Things go back to normal!  K should stay fixed (after 3 time periods, because we filter input
     # over a 'window' of 3.0 time units!), because it apparently set things right...  Not everything
     # back the same price, but basket now worth &100.00 again.
@@ -274,31 +275,31 @@ def money_create_2( buck ):
         }, 5 )
     assert near( buck.inflation(),      1.00 )
     assert near( buck.K(),              0.4350 )
-    #                               was 0.4558 above
+
     assert near( buck.credit( stuff ),  4.8155 )
-    #                               was 5.0461 above
+
     buck.update( { }, 6 )
     assert near( buck.inflation(),      1.00 )
     assert near( buck.K(),              0.4458 )
-    #                               was 0.4800 above
+
     buck.update( { }, 7 )
     assert near( buck.inflation(),      1.00 )
     assert near( buck.K(),              0.4825 )
-    #                               was 0.5050 above
+
     buck.update( { }, 8 )
     assert near( buck.inflation(),      1.00 )
     assert near( buck.K(),              0.5075 )
-    #                               was 0.4925 above
+
     buck.update( { }, 9 )
     assert near( buck.inflation(),      1.00 )
     assert near( buck.K(),              0.4950 )
-    #                               was 0.4925 above
+
     buck.update( { }, 10 )
     assert near( buck.inflation(),      1.00 )
     assert near( buck.K(),              0.4950 )
-    #                               was 0.4925 above
-    assert near( buck.credit( stuff ),  5.4797 )
-    #                               was 5.4519 above
+
+    assert near( buck.credit( stuff ),  5.4796 )
+
 
     # We stabilize after timestamp 10, whereas the simple averaging test above stabilizes after
     # timestamp 9, due to the fact we skipped a commodity basket sample at timestamp 2; Since the

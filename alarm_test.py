@@ -1,6 +1,10 @@
-import alarm
-import misc
-import filtered
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+from ownercredit import alarm
+from ownercredit import misc
+from ownercredit import filtered
 
 def test_ack():
 
@@ -76,19 +80,19 @@ def test_acklevel():
 
     
     tritr = iter( a.compute( level=2 ))
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 0, sev: 0, normal, acknowledged>"
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 1, sev: 2, hi, acknowledged>"
     assert True == a.acknowledged()
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 2, sev: 3, hi, ack required>"
     assert False == a.acknowledged()
     assert 0 == len(list( tritr ))
     assert False == a.acknowledged()
 
     tritr = iter( a.compute( level=3 ))
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 3, sev: 5, hi hi, ack required>"
     assert 0 == len(list( tritr ))
 
@@ -105,17 +109,17 @@ def test_positional():
             'limits':           [-3,-1,1,3]})
 
     tritr = iter( a.compute( None, 2 ))
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 0, sev: 0, normal, acknowledged>"
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 1, sev: 2, hi, acknowledged>"
     assert True == a.acknowledged()
     assert 0 == len(list( tritr ))
 
     tritr = iter( a.compute( None, 3 ))
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 2, sev: 4, hi hi, acknowledged>"
-    trans = tritr.next()
+    trans = next( tritr )
     assert str( a ) == "<acklevel seq# 3, sev: 5, hi hi, ack required>"
     assert 0 == len(list( tritr ))
 

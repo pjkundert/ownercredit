@@ -21,6 +21,10 @@ trading		-- Market trading simulation framework
 # You should have received a copy of the GNU General Public License
 # along with Owner Credit.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 __author__                      = "Perry Kundert"
 __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
@@ -31,7 +35,7 @@ import logging
 
 from .. import misc 
 
-from exchgs import *
+from .exchgs import *
 
 need = collections.namedtuple( 
     'Need', [
@@ -180,7 +184,7 @@ class actor( object ):
                 # current market asking price (greatest of bid, ask and latest).
                 proportion	= 1. - ( n.deadline - self.now ) / n.cycle
                 factor		= misc.scale( proportion, (0., 1.), (0.90, 1.05))
-                price		= max( exch.price( n.security ))
+                price		= max( 0 if p is None else p for p in exch.price( n.security ))
                 if price is None or misc.near( 0, price ):
                     # No market yet!  Offer 1 cent per unit.
                     offer	= 0.01
@@ -225,7 +229,7 @@ class actor( object ):
         for sec, bal in self.assets.items():
             if exclude and sec in exclude:
                 continue
-            price		= max( exch.price( sec ))
+            price		= max( 0 if p is None else p for p in exch.price( sec ))
             if price is None:
                 continue
             # There is bidding on this security.  Compute the value of
@@ -249,7 +253,7 @@ class actor( object ):
 
         excess = self.check_holdings( exch, exclude=exclude )
 
-        for sec, val in sorted( excess.items(), lambda sv: -sv[1] ):
+        for sec, val in sorted( excess.items(), key=lambda sv: -sv[1] ):
             # Sell some of the securities at current market rate (no price) we
             # have the most excess value of, 'til we have enough.  We'll have to
             # guess approximately how many units, because we don't know exactly
@@ -257,8 +261,8 @@ class actor( object ):
             overage 		= (self.assets[sec] - self.target.get( sec, 0 ))
             amount 		= min( int( value / excess[sec] ) + 1, overage )
             estimate 		= amount * excess[sec] / overage   # units * $/unit
-            print "Sell %d of %d excess %s (worth ~%7.2f) for about %7.2f" % (
-                amount, overage, sec, val, estimate  )
+            print( "Sell %d of %d excess %s (worth ~%7.2f) for about %7.2f" % (
+                amount, overage, sec, val, estimate  ))
             exch.enter( trade( security=sec, price=misc.nan,
                                        time=self.now, amount=-amount,
                                        agent=self ),
@@ -298,11 +302,11 @@ class actor( object ):
         reference 		= 0.
         for sec, bas in bases.items():
             reference 	       += bas
-            price 		= max( exch.price( sec ))
-            print "Inflation: %s @%r" % ( sec, price )
-            total 	       += price if price is not None else 0.
+            price 		= max( 0 if p is None else p for p in exch.price( sec ))
+            print( "Inflation: %s @%r" % ( sec, price ))
+            total 	       += price
         inflation 		= total / reference
-        print "Inflation == %7.2f" % ( inflation )
+        print( "Inflation == %7.2f" % ( inflation ))
 
         buying 			= {}
         selling 		= {}
@@ -314,9 +318,9 @@ class actor( object ):
                 selling[order.security] = -order.amount
 
         holdings 		= self.check_holdings( exch )
-        print repr( holdings.items() )
+        print( repr( holdings.items() ))
         for sec, val in sorted( holdings.items(), key=lambda sv: -sv[1], reverse=True ):
-            print "fix: %s: holds %s" % ( sec, val )
+            print( "fix: %s: holds %s" % ( sec, val ))
             amount 		= 1
             if inflation < 1.0:
                 # Prices too low; buy at market!

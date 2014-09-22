@@ -1,4 +1,8 @@
-from misc import *
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+from ownercredit.misc import *
 
 def test_nan():
     assert True  == isnan( float( 'nan' ))
@@ -42,7 +46,7 @@ def test_value():
     v *= 5      # __imul__
     assert 5 == v
     i = 5
-    i /= v      # __rdiv__
+    i //= v      # __rfloordiv__
     assert i == 1
     i
     assert type( i ) == int

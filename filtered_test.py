@@ -1,7 +1,10 @@
+from __future__ import division
+from __future__ import print_function
+from __future__ import absolute_import
 
-import misc
-from misc import near
-import filtered
+from ownercredit import misc
+from ownercredit.misc import near
+from ownercredit import filtered
 
 def test_level_int():
     lvl                 = filtered.level( 0, 0 )
@@ -99,7 +102,7 @@ def test_level_value():
 
     l			= filtered.level( value=v, normal=5., now=10 )
 
-    for t in xrange( 10, 21 ):
+    for t in range( 10, 21 ):
         l.sample( value=v, now=t )
         lev		= l.level()
         #print "now==%d: value == %7.2f, lev==%d" % ( t, v.compute( now=t ), lev )
@@ -269,7 +272,7 @@ def test_intervals():
     ws_f		= filtered.weighted( interval=10, now=0 )
     wl_i		= filtered.weighted_linear( interval=10, now=0 )
     wl_f		= filtered.weighted_linear( interval=10, now=0 )
-    for x in xrange( 0, 11 ):
+    for x in range( 0, 11 ):
         av_i.sample( value=100  + x, now=x )
         av_f.sample( value=100. + x, now=x )
         ws_i.sample( value=100  + x, now=x )
@@ -281,8 +284,8 @@ def test_intervals():
     # Simple averaging includes the latest sample at full weight, and
     # discards the oldest sample as soon as it touches the end of the
     # time span.
-    assert       105 ==  av_i.compute( now=10 )
-    assert 	 106 ==  av_i.sample( value=111,  now=11 )
+    assert near( 105.50, av_i.compute( now=10 ))
+    assert near( 106.50, av_i.sample( value=111,  now=11 ))
 
     assert near( 105.50, av_f.compute( now=10   )) # includes now==1, 2, 3, ... , 9, 10
     assert near( 105.50, av_f.compute( now=10.5 )) # includes now==2, 3, ... , 9, 10
@@ -290,11 +293,11 @@ def test_intervals():
     assert near( 106.50, av_f.sample( value=111., now=11 )) # includes now==3, ... , 9, 10, 11
 
     assert near( 110.50, av_f.compute( now=19 )) # includes now==11
-    assert 	 110 ==  av_i.compute( now=19 )
+    assert near( 110.50, av_i.compute( now=19 ))
     assert near( 111.,   av_f.compute( now=20 )) # includes now==11
-    assert 	 111 ==  av_i.compute( now=20 )
+    assert near( 111.,   av_i.compute( now=20 ))
     assert near( 111.,   av_f.compute( now=21 )) # includes now==11
-    assert 	 111 ==  av_i.compute( now=21 )
+    assert near( 111.,   av_i.compute( now=21 ))
 
     # weighted includes all samples, using time weighted averaging
     # between each: (a+b)/2.  This means that new samples added will
@@ -304,8 +307,8 @@ def test_intervals():
     # interval.  This is not "smooth" as time advances, and will not
     # be appropriate for all uses.  Remember, integer averaging always
     # rounds down.
-    assert       104 ==  ws_i.compute( now=10   )  # includes now==1-2(101), ..., 4-5(104), 5-6(105), ..., 9-10(109)
-    assert       105 ==  ws_i.sample( value=111,  now=11 )
+    assert near( 105.0, ws_i.compute( now=10   ))  # includes now==1-2(101), ..., 4-5(104), 5-6(105), ..., 9-10(109)
+    assert near( 106.0, ws_i.sample( value=111,  now=11 ))
 
     assert near( 105.00, ws_f.compute( now=10   )) # includes now==1-2(101.5), 2-3(102.5), 3-4, ..., 9-10(109.5)
     assert near( 105.475,ws_f.compute( now=10.5 )) # includes now==2-3(102.5), 3-4, ..., 9-10(109.5), 10-(110)
@@ -313,11 +316,11 @@ def test_intervals():
     assert near( 106.00, ws_f.sample( value=111., now=11 )) # non-linear!
 
     assert near( 110.80, ws_f.compute( now=19 )) # includes now==11
-    assert 	 110 ==  ws_i.compute( now=19 )
+    assert near( 110.80, ws_i.compute( now=19 ))
     assert near( 110.95, ws_f.compute( now=20 )) # includes now==11
-    assert 	 110 ==  ws_i.compute( now=20 )
-    assert near( 111.,   ws_f.compute( now=21 )) # includes now==11
-    assert 	 111 ==  ws_i.compute( now=21 )
+    assert near( 110.95, ws_i.compute( now=20 ))
+    assert near( 111.00, ws_f.compute( now=21 )) # includes now==11
+    assert near( 111.00, ws_i.compute( now=21 ))
 
     # weighted_linear doesn't include a sample with a 0 time interval
     # (eg. the sample at now=10, with no elapsed time).  This means
@@ -325,8 +328,8 @@ def test_intervals():
     # average, and will smoothly begin to affect computed result as
     # time passes.  This is probably more appropriate for smoothly
     # changing time-based models.
-    assert       104  == wl_i.compute( now=10   )  # includes now==1, 2, 3, ... , 9
-    assert       105 ==  wl_i.sample( value=111,  now=11 )
+    assert near( 104.50, wl_i.compute( now=10   )) # includes now==1, 2, 3, ... , 9
+    assert near( 105.50, wl_i.sample( value=111,  now=11 ))
 
     assert near( 104.50, wl_f.compute( now=10   )) # includes now==1-2(101.), 2-3(102.), ... , 9-10(109.)
     assert near( 105.00, wl_f.compute( now=10.5 )) # includes now==2-3(102.), ... , 9-10(109.), 10-11(110.)
@@ -334,11 +337,11 @@ def test_intervals():
     assert near( 105.50, wl_f.sample( value=111., now=11 )) # smooth.
 
     assert near( 110.70, wl_f.compute( now=19 )) # includes now==11
-    assert 	 110 ==  wl_i.compute( now=19 )
+    assert near( 110.70, wl_i.compute( now=19 ))
     assert near( 110.90, wl_f.compute( now=20 )) # includes now==11
-    assert 	 110 ==  wl_i.compute( now=20 )
-    assert near( 111.,   wl_f.compute( now=21 )) # includes now==11
-    assert 	 111 ==  wl_i.compute( now=21 )
+    assert near( 110.90, wl_i.compute( now=20 ))
+    assert near( 111.00, wl_f.compute( now=21 )) # includes now==11
+    assert near( 111.00, wl_i.compute( now=21 ))
 
     wl_f.interval = 0
     wl_i.interval = 0

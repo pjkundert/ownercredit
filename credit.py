@@ -26,6 +26,10 @@ credit.currency -- Basic credit system currency computations
 # You should have received a copy of the GNU General Public License
 # along with Owner Credit.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 __author__                      = "Perry Kundert"
 __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
@@ -35,9 +39,9 @@ import math
 
 # Local modules
 
-import pid
-import misc
-import filtered
+from ownercredit import pid
+from ownercredit import misc
+from ownercredit import filtered
 
 class currency( object ):
     """
@@ -114,10 +118,10 @@ class currency( object ):
             # A user-supplied filtered value for filtering (moderating) inflation.  Good.
             process             = window
         elif isinstance( window, tuple ):
-            print "ownercredit.credit -- upgrade 'window=%r' (weighted linear) keyword arg." % ( window, )
+            print( "ownercredit.credit -- upgrade 'window=%r' (weighted linear) keyword arg." % ( window, ))
             process             = filtered.weighted_linear( window[0], value = 1.0, now = now )
         else:
-            print "ownercredit.credit -- upgrade 'window=%r' (simple average) keyword arg." % ( window, )
+            print( "ownercredit.credit -- upgrade 'window=%r' (simple average) keyword arg." % ( window, ))
             process             = filtered.averaged( window, value = 1.0, now = now )
 
         self.stabilizer = pid.controller( Kpid = Kpid,
@@ -176,7 +180,7 @@ class currency( object ):
         if now is None:
             now                 = misc.timer()
         if now < self.now():
-            raise Exception, "Attempt to update multiple times for previous time period"
+            raise Exception( "Attempt to update multiple times for previous time period" )
 
         if self.price and now > self.now():
             # Time has advanced, and we have prices (we've been initialized).  If any prices had
@@ -186,10 +190,10 @@ class currency( object ):
             total               = 0.
             for c,u in self.basket.items():
                 total          += u * self.price[c]
-            inf                 = total / self.multiplier
-            if inf != self.inflation():
-                #print "Updating inflation from % 7.2f to % 7.2f due to price changes for now=% 7.2f" % ( self.inflation(), inf, self.now())
-                self.stabilizer.process.sample( value=inf, now=self.now() )
+            infl                = total / self.multiplier
+            if infl != self.inflation():
+                #print( "Updating inflation from % 7.2f to % 7.2f due to price changes for now=% 7.2f" % ( self.inflation(), inf, self.now()))
+                self.stabilizer.process.sample( value=infl, now=self.now() )
 
         # Update current prices from supplied dictionary, and compute inflation.  We must be
         # supplied a price list which contains all of our currency's commodity basket!  For each
@@ -283,8 +287,8 @@ def plot( win, rows, cols, Py, Px, trend ):
    # 1/2 of screen; Compute graph fixed offset, scale and zero point
     Ox                          = 10.
     Oy                          =  5.
-    Sx                          = ( cols - Ox ) / ( Px[1] - Px[0] )
-    Sy                          = ( rows - Oy ) / ( Py[1] - Py[0] )
+    Sx                          = ( cols - Ox ) // ( Px[1] - Px[0] )
+    Sy                          = ( rows - Oy ) // ( Py[1] - Py[0] )
     Zx                          = Px[0] * Sx
     Zy                          = Py[0] * Sx
 
@@ -295,10 +299,10 @@ def plot( win, rows, cols, Py, Px, trend ):
     #draw( win, 1, 0, "Oy:% 7.2f, Sy:% 7.2f, Py:% 7.2f-% 7.2f, Zy:% 7.2f" % ( Oy, Sy, Py[0], Py[1], Zy ))
 
     for x in range( int( Px[0] ), int( Px[1] ) + 1 ):
-        if x >    0: draw( win, Oy - 4,      Ox + x * Sx - Zx, str( x /    1 % 10 ) )
-        if x >   10: draw( win, Oy - 3,      Ox + x * Sx - Zx, str( x /   10 % 10 ) )
-        if x >  100: draw( win, Oy - 2,      Ox + x * Sx - Zx, str( x /  100 % 10 ) )
-        if x > 1000: draw( win, Oy - 1,      Ox + x * Sx - Zx, str( x / 1000 % 10 ) )
+        if x >    0: draw( win, Oy - 4,      Ox + x * Sx - Zx, str( x //    1 % 10 ) )
+        if x >   10: draw( win, Oy - 3,      Ox + x * Sx - Zx, str( x //   10 % 10 ) )
+        if x >  100: draw( win, Oy - 2,      Ox + x * Sx - Zx, str( x //  100 % 10 ) )
+        if x > 1000: draw( win, Oy - 1,      Ox + x * Sx - Zx, str( x // 1000 % 10 ) )
     for y in range( int( Py[0] ), int( Py[1] ) + 1 ):
         draw( win, Oy + y * Sy - Zy, Ox - 5,   "%4d" % ( y ) )
         for x in range( int( Px[0] ), int( Px[1] ) + 1 ):
@@ -456,7 +460,7 @@ def ui( win, title = "Test" ):
 
         #     win, Y,           X,           [ ( x, { 'Y1': y, 'Y2': y ... } ) ]
         rows, cols                  = win.getmaxyx()
-        plot( win, rows, cols/2, ( 0., 5.0 ), ( max( 0., now - 20 ), max( 20, now )), trend )
+        plot( win, rows, cols//2, ( 0., 5.0 ), ( max( 0., now - 20 ), max( 20, now )), trend )
 
         message( win,
                  "T%+7.2f: ([P/p]: % 8.4f/% 8.4f [I/i]: % 8.4f/% 8.4f [D/d]: %8.4f/% 8.4f)"
