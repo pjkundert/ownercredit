@@ -111,12 +111,25 @@ def clamp( val, lim ):
 # decreasing ordering of domains or ranges.  If clamped, we will ensure that the rng is (re)ordered
 # appropriately.
 # 
-def scale( val, dom, rng, clamped=False ):
-    """Map 'val' from domain 'dom', to new range 'rng'"""
+#     If non-unity exponent is provided, then the input domain is raised to the appropriate power
+# during the mapping.  This allows us to map something like (25,40)->(0,1) with a curve such as:
+# 
+#   1 |              .
+#     |             .
+#     |           ..
+#     |        ...
+#     |   .....
+#   0 +---------------
+#     2              4
+#     5              0
+# 
+# 
+def scale( val, dom, rng, clamped=False, exponent=1 ):
+    """Map 'val' from domain 'dom', to new range 'rng', optionally with an exponential scaling."""
     result                      = ( rng[0]
-                                    + ( val    - dom[0] )
+                                    + ( val    - dom[0] ) ** exponent
                                     * ( rng[1] - rng[0] )
-                                    / ( dom[1] - dom[0] ))
+                                    / ( dom[1] - dom[0] ) ** exponent )
     if clamped:
         result                  = clamp( result, (min(rng), max(rng)))
     return result

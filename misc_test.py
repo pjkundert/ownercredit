@@ -29,6 +29,18 @@ def test_scale():
     assert near( scale( -40., ( 100., 0. ), ( 32., 212. )), 284. )
     assert near( scale(  20., ( 100., 0. ), ( 32., 212. )), 176. )
 
+    # An exponential mapping
+    assert near( scale(  40,       ( 25  , 40 ), ( 0, 1 )),              1 )
+    assert near( scale(  40,       ( 25  , 40 ), ( 0, 1 ), exponent=2),  1 )
+    assert near( scale(  25,       ( 25  , 40 ), ( 0, 1 )),              0 )
+    assert near( scale(  25,       ( 25  , 40 ), ( 0, 1 ), exponent=2),  0 )
+    assert near( scale(  25+15/2 , ( 25  , 40 ), ( 0, 1 )),               .5 )
+    assert near( scale(  25+15/2 , ( 25  , 40 ), ( 0, 1 ), exponent=2),   .25 )
+    assert near( scale(  39      , ( 25  , 40 ), ( 0, 1 )),               .9333 )
+    assert near( scale(  39      , ( 25  , 40 ), ( 0, 1 ), exponent=2),   .8711 )
+    assert near( scale(  26      , ( 25  , 40 ), ( 0, 1 )),               .066667 )
+    assert near( scale(  26      , ( 25  , 40 ), ( 0, 1 ), exponent=2),   .004444 )
+
 def test_magnitude():
     # base 10 (the default)
     assert near( magnitude( 23.   ),  1.   )
