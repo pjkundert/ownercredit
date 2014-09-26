@@ -141,28 +141,29 @@ class averaged( misc.value ):
                 if now is None:
                     now         = value.now
                 value           = value.compute( now=now )
-        else:
-            # No lock required; single value, atomic access
-            if value is None:
-                value           = self.history[0][0]
-            if now is None:
-                now             = misc.timer()
-
-        # We cannot allow revision of history, but multiple samples at the same instant is OK
-        if now < self.now:
-            raise ZeroDivisionError( "Invalid sample; attempting to use out-of-order 'now' time value" )
-
-        # Reject simple duplicates, (eg. so py.test works; calls multiple times on assertion failures,
-        # expects no side effects).  No lock required; self.history is not allowed to disappear, and 
-        # tuples are immutable
-        if self.history and self.history[0] == ( value, now ):
-            return self.value
 
         # Lock required to ensure consistent multi-step update.  Updating with a None/NaN will
         # update our time (and remember the non-value), but will not contaminate our history.  In
         # other words, it will indicate a problem with the value, but when corrected, correct
         # computation of values will resume.
         with self.lock:
+            # Now that we have a lock, we can ensure that we'll always get a time ahead of self.now,
+            # unless someone went out of their way to manually use a future time!
+            if value is None:
+                value           = self.history[0][0]
+            if now is None:
+                now             = misc.timer()
+
+            # We cannot allow revision of history, but multiple samples at the same instant is OK
+            if now < self.now:
+                raise ZeroDivisionError( "Invalid sample; attempting to use out-of-order 'now' time value" )
+
+            # Reject simple duplicates, (eg. so py.test works; calls multiple times on assertion failures,
+            # expects no side effects).  No lock required; self.history is not allowed to disappear, and 
+            # tuples are immutable
+            if self.history and self.history[0] == ( value, now ):
+                return self.value
+
             self.purge( now=now )
 
             if value is None or misc.isnan( value ):
