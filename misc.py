@@ -97,7 +97,7 @@ def near( a, b, significance = 1.0e-4 ):
 # may contain NaN.
 # 
 def clamp( val, lim ):
-    """ Limit val to between 2 (optional, if nan) limits """
+    """ Limit val to between 2 (optional, if nan, because no value is < or > nan) limits """
     if ( val < lim[0] ):
         return lim[0]
     if ( val > lim[1] ):
@@ -125,13 +125,26 @@ def clamp( val, lim ):
 # 
 # 
 def scale( val, dom, rng, clamped=False, exponent=1 ):
-    """Map 'val' from domain 'dom', to new range 'rng', optionally with an exponential scaling."""
+    """Map 'val' from domain 'dom', to new range 'rng', optionally with an exponential scaling.  If a
+    non-unity exponent is provided, then the input value is also clamped to the input domain (and
+    its order is asserted) since raising -'ve values to arbitrary exponents will usually have very
+    unexpected results.  Otherwise, at unity exponent, allow -'ve values and out-of-order ranges.
+
+    """
+    if exponent != 1:
+        assert dom[1] > dom[0], "Scaling %s non-linearly requires an ordered domain: %s" % ( val, dom )
+        if clamped:
+            val			= clamp( val, (min(dom),max(dom)) )
+        else:
+            assert dom[0] <= val <= dom[1], "Scaling %s non-linearly requires value in domain: %s" % ( val, dom )
+    else:
+        assert dom[1] != dom[0], "Scaling %s requires a non-zero domain: %s" % ( val, dom )
     result                      = ( rng[0]
                                     + ( val    - dom[0] ) ** exponent
                                     * ( rng[1] - rng[0] )
                                     / ( dom[1] - dom[0] ) ** exponent )
     if clamped:
-        result                  = clamp( result, (min(rng), max(rng)))
+        result                  = clamp( result, (min(rng),max(rng)))
     return result
 
 # 

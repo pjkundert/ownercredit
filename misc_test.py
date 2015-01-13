@@ -41,6 +41,10 @@ def test_scale():
     assert near( scale(  26      , ( 25  , 40 ), ( 0, 1 )),               .066667 )
     assert near( scale(  26      , ( 25  , 40 ), ( 0, 1 ), exponent=2),   .004444 )
 
+    # Ensure non-linear scaling ensures negatives may be handled by clamping domain
+    assert near( scale(  24      , ( 25  , 40 ), ( 0, 1 ), exponent=2, clamped=True ),  0 )
+    
+
 def test_magnitude():
     # base 10 (the default)
     assert near( magnitude( 23.   ),  1.   )
