@@ -277,9 +277,9 @@ class pid:
 
 
 def message( window, text, row = 23, col = 0 ):
-    window.move( row, col )
+    window.move( int( row ), int( col ))
     window.clrtoeol()
-    window.addstr( row, col, text )
+    window.addstr( int( row ), int( col ), text )
 
 
 def ui( win, title = "Test" ):
