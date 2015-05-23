@@ -5,8 +5,8 @@ from __future__ import division
 import logging
 logging.basicConfig(level=logging.INFO)
 
-from ownercredit.misc import near
-from ownercredit import trading
+from .misc import near
+from . import trading
 
 
 def test_market_simple():

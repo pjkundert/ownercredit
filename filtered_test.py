@@ -2,9 +2,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-from ownercredit import misc
-from ownercredit.misc import near
-from ownercredit import filtered
+from . import misc
+from .misc import near
+from . import filtered
 
 def test_level_int():
     lvl                 = filtered.level( 0, 0 )

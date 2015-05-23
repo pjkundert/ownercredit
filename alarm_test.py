@@ -2,9 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from ownercredit import alarm
-from ownercredit import misc
-from ownercredit import filtered
+from . import alarm
 
 def test_ack():
 

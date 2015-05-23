@@ -15,9 +15,9 @@ __copyright__                           = "Copyright (c) 2006 Perry Kundert"
 __license__                             = "GNU General Public License, Version 3 (or later)"
 
 # local modules
-from ownercredit import credit
-from ownercredit import filtered
-from ownercredit.misc import near
+from . import credit
+from . import filtered
+from .misc import near
 
 def test_near():
     assert     near( 0.5, 0.500001 )

@@ -1,3 +1,4 @@
+
 Owner Credit System
 
 
@@ -7,8 +8,7 @@ OVERVIEW
 
     For a discussion of the theory and design of this credit system, visit:
 
-        http://docs.google.com/Doc?id=dg8bjkjk_12q6fjpbdk
-
+        https://docs.google.com/document/d/1iUscaSy6HHLVz2e2rjQfQtx5pO0dNqLqI5ZavkMjBpQ/edit?pli=1
 
 USAGE
 
@@ -232,7 +232,7 @@ simulation using Bang-bang, proportional and PID controllers:
 
 Another PID loop implementation was found in cgkit's pidcontroller.py
 file, which also illuminated some errors in the www.edparadis.com PID
-loop implementation (see pidcontroller.py:
+loop implementation; see pidcontroller.py:
 
         http://gentoo.osuosl.org/distfiles/cgkit-2.0.0alpha7.tar.gz
 

@@ -15,8 +15,8 @@ __copyright__                           = "Copyright (c) 2006 Perry Kundert"
 __license__                             = "GNU General Public License, Version 3 (or later)"
 
 # local modules
-from ownercredit import pid
-from ownercredit.misc import *
+from . import pid
+from .misc import *
 
 # 
 # pid.pid       -- Basic test, no filtering.

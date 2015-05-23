@@ -11,7 +11,7 @@ stock 		-- Market simulation framework
 # 
 # Owner Credit is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 2 of the License, or
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 # 
 # Owner Credit is distributed in the hope that it will be useful,
@@ -29,7 +29,7 @@ from __future__ import division
 __author__                      = "Perry Kundert"
 __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
-__license__                     = "GNU General Public License, Version 2 (or later)"
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
 import collections
 import itertools

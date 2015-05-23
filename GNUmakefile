@@ -3,30 +3,56 @@
 # OnwerCredit GNU 'make' file
 # 
 
-VERSION		:=4.0.0
+PY2=python
+PY3=python3
 
-PY=python
-PYTEST=$(PY) -m pytest --capture=no
+PYTESTOPTS=-v # --capture=no
+
+PY2TEST=$(PY2) -m pytest $(PYTESTOPTS)
+PY3TEST=$(PY3) -m pytest $(PYTESTOPTS)
 
 .PHONY: all clean FORCE
-all:				ownercredit-$(VERSION).zip	\
-				ownercredit-$(VERSION).tgz	\
-				clean
+all:			help
+
+help:
+	@echo  "GNUmakefile for ownercredit.  Targets:"
+	@echo  "  test			Run unit tests under Python2"
+	@echo  "  install		Install in /usr/local for Python2"
+	@echo  "  clean			Remove build artifacts"
+	@echo  "  upload		Upload new version to pypi (package maintainer only)"
+
+install:
+	$(PY2) setup.py install
+	$(PY3) setup.py install
+
+analyze:
+	flake8 -j 1 --max-line-length=110					\
+	  --ignore=E221,E201,E202,E203,E223,E225,E226,E231,E241,E242,E261,E272,E302,W503,E701,E702,E,W	\
+	  --exclude="__init__.py" \
+	  .
 clean:
-	rm -rf /tmp/ownercredit-$(VERSION)			\
-	    *.pyc
+	rm -rf build dist auto *.egg-info  $(shell find . -name '*.pyc' -o -name '__pycache__' )
+
+# Support uploading a new version of ownercredit to pypi.  Must:
+#   o advance __version__ number in version.py
+#   o log in to your pypi account (ie. for package maintainer only)
+upload:
+	python setup.py sdist upload
 
 # Only run tests in this directory.
 test:
 	@py.test --version || echo "py.test not found; run 'sudo easy_install pytest'?"
-	$(PYTEST) *_test.py
+	$(PY2TEST) *_test.py
+	$(PY3TEST) *_test.py
 
 # Run only tests with a prefix containing the target string, eg test-blah
 test-%:
-	$(PYTEST) *$*_test.py
+	$(PY2TEST) *$*_test.py
+	$(PY3TEST) *$*_test.py
 
 unit-%:
-	$(PYTEST) -k $*
+	$(PY2TEST) -k $*
+	$(PY3TEST) -k $*
 
 # 
 # Target to allow the printing of 'make' variables, eg:
@@ -36,33 +62,4 @@ unit-%:
 print-%:
 	@echo $* = $($*) 
 	@echo $*\'s origin is $(origin $*)
-
-# 
-# Owner Credit implemention
-# 
-# credit.py	-- A model wealth-backed currency implementation
-# pid.py	-- A PID controller implementation
-# misc.py	-- Various math related utilites, such as NaN, and a generic "value" type object
-# filtered.py	-- Things that act like numerical values, but implement averaging type behaviour
-# lander.py	-- A partially complete Lunar Lander, with PID "auto" mode (spacebar switches)
-# 
-ownercredit-$(VERSION).tgz:		/tmp/ownercredit-$(VERSION)
-	tar -C /tmp -czvf $@ ownercredit-$(VERSION)
-
-ownercredit-$(VERSION).zip:		/tmp/ownercredit-$(VERSION)
-	( cd /tmp && zip -r - $(notdir $<) ) > $@
-
-/tmp/ownercredit-$(VERSION):		README			\
-					GNUmakefile		\
-					credit.py		\
-					credit_test.py		\
-					pid.py			\
-					pid_test.py		\
-					misc.py			\
-					misc_test.py		\
-					filtered.py		\
-					filtered_test.py	\
-					lander.py
-
-	rsync -va $^ $@/
 

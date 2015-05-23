@@ -1,5 +1,13 @@
 *.pyc
-*~
-*.tgz
-*.tar
 
+# Editor temporaries
+*~
+.#*
+
+# System generated files
+.DS_Store
+*.png
+auto/
+build/
+dist/
+*.egg-info/

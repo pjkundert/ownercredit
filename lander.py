@@ -5,7 +5,7 @@
 # 
 # Owner Credit is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 2 of the License, or
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 # 
 # Owner Credit is distributed in the hope that it will be useful,
@@ -16,19 +16,37 @@
 # You should have received a copy of the GNU General Public License
 # along with Owner Credit.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import division
+
 __author__                      = "Perry Kundert"
 __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
-__license__                     = "GNU General Public License, Version 2 (or later)"
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
-import time
-import random
+
 import math
+import os
+import random
+import sys
+import time
+
+# Module Script.  Ensure that importing works (whether ownercredit installed or not) with:
+#   python -m ownercredit.lander
+#   ./ownercredit/lander.py
+#   ./lander.py
+if __name__ == "__main__" and __package__ is None:
+    __package__                 = "ownercredit"
+try:
+    import ownercredit
+except ImportError:
+    # Couldn't import; include our containing directory path in sys.path
+    sys.path.insert( 0, os.path.dirname( os.path.dirname( os.path.abspath( __file__ ))))
+    import ownercredit
 
 # Local modules
-import misc
-import filtered
-import pid
+from . import misc
+from . import filtered
+from . import pid
 
 
 # message
@@ -38,8 +56,8 @@ import pid
 def message( window, text, row = 0, col = 0 ):
     rows, cols                  = window.getmaxyx()
 
-    c                           = col
-    r                           = rows - 1 - row
+    c                           = int( col )
+    r                           = int( rows - 1 - row )
 
     if r < 0 or r >= rows:
         return
@@ -199,7 +217,7 @@ def ui( win, title = "Test" ):
     X                           = 0     # Indices for (x,y) tuples
     Y                           = 1
     now                         = time.time()
-    pos                         = ( cols/2, rows/2 )
+    pos                         = ( cols//2, rows//2 )
     throttle                    = 0.  # ( 0, 1)
     angle                       = 0.  # (-1,+1)
     g                           = 9.8 / 6
@@ -207,10 +225,10 @@ def ui( win, title = "Test" ):
     # Generate some tarrain at various X positions.  -'ve (leftward) ground is simply inverse of +'ve
     elevation                   = ( 4, 10 )     # min/max elevation (avg. is beginning)
     ground                      = {}
-    ground[0]                   = elevation[0] + ( elevation[1] - elevation[0] ) / 2
+    ground[0]                   = elevation[0] + ( elevation[1] - elevation[0] ) // 2
     for x in range( 1, 1000 ):
         ground[x]               = misc.clamp( ground[x-1] + random.randint( -1, 1 ), elevation )
-        ground[-x]              = misc.scale( ground[x], elevation, ( elevation[1], elevation[0] ))
+        ground[-x]              = int( misc.scale( ground[x], elevation, ( elevation[1], elevation[0] )))
 
     autopilot                   = True
 
@@ -402,7 +420,7 @@ if __name__=='__main__':
         stdscr=curses.initscr()
         curses.noecho() ; curses.cbreak(); curses.halfdelay( 1 )
         stdscr.keypad(1)
-        ui( stdscr, title="Rocket" )        # Enter the mainloop
+        ui( stdscr, title="Lander" )        # Enter the mainloop
         stdscr.keypad(0)
         curses.echo() ; curses.nocbreak()
         curses.endwin()                 # Terminate curses

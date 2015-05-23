@@ -22,7 +22,7 @@ to be tuned.
 # 
 # Owner Credit is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 2 of the License, or
+# the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 # 
 # Owner Credit is distributed in the hope that it will be useful,
@@ -40,12 +40,27 @@ from __future__ import division
 __author__                      = "Perry Kundert"
 __email__                       = "perry@kundert.ca"
 __copyright__                   = "Copyright (c) 2006 Perry Kundert"
-__license__                     = "GNU General Public License, Version 2 (or later)"
+__license__                     = "Dual License: GPLv3 (or later) and Commercial (see LICENSE)"
 
+import os
+import sys
 import math
 
-from ownercredit import filtered
-from ownercredit import misc
+# Module Script.  Ensure that importing works (whether ownercredit installed or not) with:
+#   python -m ownercredit.pid
+#   ./ownercredit/pid.py
+#   ./pid.py
+if __name__ == "__main__" and __package__ is None:
+    __package__                 = "ownercredit"
+try:
+    import ownercredit
+except ImportError:
+    # Couldn't import; include our containing directory path in sys.path
+    sys.path.insert( 0, os.path.dirname( os.path.dirname( os.path.abspath( __file__ ))))
+    import ownercredit
+
+from . import filtered
+from . import misc
 
 # 
 # pid.controller-- Collect error and adjust output to compensate

@@ -2,7 +2,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-from ownercredit.misc import *
+from .misc import *
 
 def test_nan():
     assert True  == isnan( float( 'nan' ))
