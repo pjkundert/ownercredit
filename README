@@ -4,11 +4,26 @@ Owner Credit System
 
 OVERVIEW
 
-    Tools for implementing a prototype wealth-backed currency system.
+    Tools for implementing a simple, prototype wealth-backed currency system.
 
-    For a discussion of the theory and design of this credit system, visit:
+    For a discussion of the theory, design and implications of this credit system, visit:
 
-        https://docs.google.com/document/d/1iUscaSy6HHLVz2e2rjQfQtx5pO0dNqLqI5ZavkMjBpQ/edit?pli=1
+        https://docs.google.com/document/d/1ohJu7kxz3JlmJZE139iFJanzb5XNS5kEzT1H543Mabk
+
+    While this implementation might be suitable for simple applications (such as
+in-game currencies, where it has been successfully deployed), it is clearly not
+intended to be used for real currencies! The underlying concepts can however now
+be implemented on real cryptocurrency platforms, and may lead to extremely
+interesting and valuable outcomes, both for individuals and societies:
+
+  o Using feedback control loops to issue/withdraw credit dynamically to
+    eliminate inflation and deflation.
+
+  o Defining the value of units of currency in terms of the price of a basket of
+    commodities, but *not* coupling the commodity prices to eachother.
+
+  o Issuing credit automatically on proof of ownership of any wealth that has a
+    market, and can be priced, without the necessity to charge Interest.
 
 USAGE
 

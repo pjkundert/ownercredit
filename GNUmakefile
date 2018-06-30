@@ -41,7 +41,7 @@ upload:
 
 # Only run tests in this directory.
 test:
-	@py.test --version || echo "py.test not found; run 'sudo easy_install pytest'?"
+	@py.test --version || echo "py.test not found; run 'pip install pytest'?"
 	$(PY2TEST) *_test.py
 	$(PY3TEST) *_test.py
 
