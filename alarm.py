@@ -186,7 +186,7 @@ class alarm( object ):
         if self._sequence < 0:
             yield self.transition()
             self.advance()
-        raise StopIteration
+        # raise StopIteration
 
 class ack( alarm ):
     """

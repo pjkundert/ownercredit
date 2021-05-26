@@ -44,7 +44,6 @@ __license__                     = "Dual License: GPLv3 (or later) and Commercial
 
 import os
 import sys
-import math
 
 # Module Script.  Ensure that importing works (whether ownercredit installed or not) with:
 #   python -m ownercredit.pid
@@ -151,11 +150,10 @@ class controller( misc.value ):
         else:
             self.setpoint       = setpoint
         dS		       += self.setpoint
-
         if hasattr( self.process, "sample" ):
             self.process.sample( value=process, now=now )
         else:
-            self.process        = process
+            self.process	= process
 
         if dt > 0:
             # New process, setpoint and error term only contribute if time has elapsed!

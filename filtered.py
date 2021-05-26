@@ -383,7 +383,7 @@ class weighted_linear( averaged ):
 
 
 class level( misc.value ):
-    """
+    r"""
     Filter the incoming values into levels. 
 
     The minimal configuration requires a normal value (and no hysteresis).  Incoming values will be
